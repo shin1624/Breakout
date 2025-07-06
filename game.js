@@ -5,8 +5,9 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
 // ゲーム状態
-let gameState = 'playing'; // 'playing', 'gameover', 'clear'
+let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear'
 let score = 0;
+let stage = 1;
 
 // パドル
 const paddle = {
@@ -55,6 +56,29 @@ let backgroundOffset = 0;
 let leftPressed = false;
 let rightPressed = false;
 
+// マウス座標
+let mouseX = 0;
+let mouseY = 0;
+
+// サウンドエフェクト
+const SE = {
+  hit: new Audio('se/hit.wav'),
+  break: new Audio('se/break.wav'),
+  powerup: new Audio('se/powerup.wav'),
+  gameover: new Audio('se/gameover.wav'),
+  clear: new Audio('se/clear.wav')
+};
+Object.values(SE).forEach(audio => { audio.volume = 0.4; });
+
+function playSE(name) {
+  if (SE[name]) {
+    // 同時再生対応のためcloneして再生
+    const se = SE[name].cloneNode();
+    se.volume = SE[name].volume;
+    se.play();
+  }
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') leftPressed = true;
   if (e.key === 'ArrowRight') rightPressed = true;
@@ -64,17 +88,51 @@ document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowRight') rightPressed = false;
 });
 
+// マウスイベント
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('click', (e) => {
+  if (gameState === 'title') {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // スタートボタンのクリック判定
+    const buttonY = HEIGHT * 0.7;
+    const buttonW = 200;
+    const buttonH = 50;
+    const buttonX = WIDTH / 2 - buttonW / 2;
+    
+    if (clickX >= buttonX && clickX <= buttonX + buttonW && 
+        clickY >= buttonY && clickY <= buttonY + buttonH) {
+      startGame();
+    }
+  }
+});
+
 document.getElementById('restartBtn').onclick = () => {
-  resetGame();
+  if (gameState === 'gameover' || gameState === 'clear') {
+    gameState = 'title';
+  } else {
+    resetGame();
+  }
 };
 
-function resetGame() {
+function startGame() {
+  gameState = 'playing';
+  resetGame();
+}
+
+function resetGame(isNextStage = false) {
+  if (!isNextStage) stage = 1;
   score = 0;
   gameState = 'playing';
   paddle.x = WIDTH / 2 - paddle.w / 2;
   paddle.w = 80; // パドルサイズリセット
-  
-  // ボール配列をリセット
   balls = [{
     x: WIDTH / 2,
     y: HEIGHT - 50,
@@ -84,27 +142,29 @@ function resetGame() {
     dy: -4,
     pierce: 0
   }];
-  
-  generateStage();
+  generateStage(stage);
   powerUps = [];
   activeEffects = [];
   effectMessages = [];
   particles = [];
+  document.getElementById('stage').textContent = `ステージ: ${stage}`;
 }
 
-function generateStage() {
-  // ステージ自動生成: ランダム配置
+function generateStage(stageNum = 1) {
+  // ステージ自動生成: ステージごとにブロック数や耐久を増やす
   blocks = [];
-  for (let row = 0; row < BLOCK_ROWS; row++) {
-    for (let col = 0; col < BLOCK_COLS; col++) {
-      if (Math.random() < 0.8) { // 80%の確率でブロック生成
+  const rows = Math.min(6 + Math.floor(stageNum / 2), 12);
+  const cols = Math.min(8 + Math.floor(stageNum / 3), 14);
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (Math.random() < 0.8) {
         blocks.push({
           x: BLOCK_OFFSET_LEFT + col * (BLOCK_W + BLOCK_PADDING),
           y: BLOCK_OFFSET_TOP + row * (BLOCK_H + BLOCK_PADDING),
           w: BLOCK_W,
           h: BLOCK_H,
-          hp: 1 + Math.floor(Math.random() * 2), // 1~2耐久
-          type: Math.random() < 0.1 ? 'special' : 'normal' // 10%で特殊ブロック
+          hp: 1 + Math.floor(Math.random() * (1 + Math.floor(stageNum / 2))),
+          type: Math.random() < 0.1 + stageNum * 0.01 ? 'special' : 'normal'
         });
       }
     }
@@ -299,15 +359,72 @@ function drawBackground() {
   ctx.globalAlpha = 1.0;
 }
 
+function drawTitle() {
+  // 背景
+  drawBackground();
+  
+  // タイトル
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('新型ブロック崩し', WIDTH / 2, HEIGHT / 3);
+  
+  // サブタイトル
+  ctx.font = '20px sans-serif';
+  ctx.fillStyle = '#ccc';
+  ctx.fillText('パワーアップとアニメーションで進化したブロック崩し', WIDTH / 2, HEIGHT / 3 + 40);
+  
+  // 操作方法
+  ctx.font = '16px sans-serif';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 20);
+  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 40);
+  
+  // スタートボタン
+  const buttonY = HEIGHT * 0.7;
+  const buttonW = 200;
+  const buttonH = 50;
+  const buttonX = WIDTH / 2 - buttonW / 2;
+  
+  // ボタンの背景
+  ctx.fillStyle = '#0af';
+  ctx.fillRect(buttonX, buttonY, buttonW, buttonH);
+  
+  // ボタンのテキスト
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('スタート', WIDTH / 2, buttonY + 32);
+  
+  // ボタンのホバーエフェクト
+  if (mouseX >= buttonX && mouseX <= buttonX + buttonW && 
+      mouseY >= buttonY && mouseY <= buttonY + buttonH) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(buttonX - 2, buttonY - 2, buttonW + 4, buttonH + 4);
+  }
+  
+  // バージョン情報
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Version 1.0', WIDTH / 2, HEIGHT - 20);
+  
+  ctx.textAlign = 'left';
+}
+
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
-  drawBackground();
-  drawPaddle();
-  drawBall();
-  drawBlocks();
-  drawPowerUps();
-  drawEffects();
-  drawParticles();
+  
+  if (gameState === 'title') {
+    drawTitle();
+  } else {
+    drawBackground();
+    drawPaddle();
+    drawBall();
+    drawBlocks();
+    drawPowerUps();
+    drawEffects();
+    drawParticles();
+  }
 }
 
 function update() {
@@ -323,8 +440,14 @@ function update() {
     ball.y += ball.dy;
 
     // 壁反射
-    if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) ball.dx *= -1;
-    if (ball.y - ball.r < 0) ball.dy *= -1;
+    if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) {
+      ball.dx *= -1;
+      playSE('hit');
+    }
+    if (ball.y - ball.r < 0) {
+      ball.dy *= -1;
+      playSE('hit');
+    }
 
     // パドル反射
     if (
@@ -337,6 +460,7 @@ function update() {
       // パドルのどこに当たったかで角度調整
       let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
       ball.dx = hitPos * 5;
+      playSE('hit');
     }
   });
 
@@ -379,6 +503,7 @@ function update() {
         blocks.splice(i, 1);
         score += 100;
         i--;
+        playSE('break');
       }
     }
   }
@@ -393,6 +518,7 @@ function update() {
       pu.x < paddle.x + paddle.w
     ) {
       applyPowerUp(pu.type);
+      playSE('powerup');
       powerUps.splice(idx, 1);
     } else if (pu.y > HEIGHT) {
       powerUps.splice(idx, 1);
@@ -439,11 +565,17 @@ function update() {
   // すべてのボールが落下したらゲームオーバー
   if (balls.length === 0) {
     gameState = 'gameover';
+    playSE('gameover');
   }
 
   // クリア判定
   if (blocks.length === 0) {
     gameState = 'clear';
+    playSE('clear');
+    setTimeout(() => {
+      stage++;
+      resetGame(true);
+    }, 1200);
   }
 
   document.getElementById('score').textContent = `スコア: ${score}`;
@@ -585,11 +717,10 @@ function gameLoop() {
     ctx.fillStyle = '#4f4';
     ctx.font = '32px sans-serif';
     ctx.fillText('クリア！', WIDTH / 2 - 60, HEIGHT / 2);
-  } else {
-    requestAnimationFrame(gameLoop);
   }
+  requestAnimationFrame(gameLoop);
 }
 
 // 初期化
-resetGame();
+gameState = 'title';
 gameLoop(); 
