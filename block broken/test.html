@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ブロック崩し - テスト</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f0f0f0;
+    }
+    .test-section {
+      background: white;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .test-result {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 3px;
+    }
+    .pass {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .fail {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #gameCanvas {
+      border: 1px solid #ccc;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>ブロック崩し - 機能テスト</h1>
+  
+  <div class="test-section">
+    <h2>基本機能テスト</h2>
+    <button onclick="testBasicFunctions()">基本機能をテスト</button>
+    <div id="basic-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>パワーアップテスト</h2>
+    <button onclick="testPowerUps()">パワーアップをテスト</button>
+    <div id="powerup-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>アニメーションテスト</h2>
+    <button onclick="testAnimations()">アニメーションをテスト</button>
+    <div id="animation-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>ゲーム状態テスト</h2>
+    <button onclick="testGameStates()">ゲーム状態をテスト</button>
+    <div id="state-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>パフォーマンステスト</h2>
+    <button onclick="testPerformance()">パフォーマンスをテスト</button>
+    <div id="performance-results"></div>
+  </div>
+
+  <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+  <script src="game.js"></script>
+  <script>
+    // テスト用のグローバル変数
+    let testResults = [];
+
+    function addResult(containerId, message, type = 'info') {
+      const container = document.getElementById(containerId);
+      const div = document.createElement('div');
+      div.className = `test-result ${type}`;
+      div.textContent = message;
+      container.appendChild(div);
+    }
+
+    function clearResults(containerId) {
+      document.getElementById(containerId).innerHTML = '';
+    }
+
+    function testBasicFunctions() {
+      clearResults('basic-results');
+      
+      try {
+        // Canvas テスト
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          addResult('basic-results', '✅ Canvas コンテキスト取得成功', 'pass');
+        } else {
+          addResult('basic-results', '❌ Canvas コンテキスト取得失敗', 'fail');
+        }
+
+        // ゲーム変数テスト
+        if (typeof WIDTH !== 'undefined' && WIDTH === 480) {
+          addResult('basic-results', '✅ ゲーム幅設定正常', 'pass');
+        } else {
+          addResult('basic-results', '❌ ゲーム幅設定異常', 'fail');
+        }
+
+        if (typeof HEIGHT !== 'undefined' && HEIGHT === 640) {
+          addResult('basic-results', '✅ ゲーム高さ設定正常', 'pass');
+        } else {
+          addResult('basic-results', '❌ ゲーム高さ設定異常', 'fail');
+        }
+
+        // パドルテスト
+        if (paddle && typeof paddle.x === 'number' && typeof paddle.y === 'number') {
+          addResult('basic-results', '✅ パドル初期化正常', 'pass');
+        } else {
+          addResult('basic-results', '❌ パドル初期化異常', 'fail');
+        }
+
+        // ボールテスト
+        if (ball && typeof ball.x === 'number' && typeof ball.y === 'number') {
+          addResult('basic-results', '✅ ボール初期化正常', 'pass');
+        } else {
+          addResult('basic-results', '❌ ボール初期化異常', 'fail');
+        }
+
+        // ブロック生成テスト
+        if (typeof generateStage === 'function') {
+          addResult('basic-results', '✅ ステージ生成関数存在', 'pass');
+        } else {
+          addResult('basic-results', '❌ ステージ生成関数不存在', 'fail');
+        }
+
+      } catch (error) {
+        addResult('basic-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    function testPowerUps() {
+      clearResults('powerup-results');
+      
+      try {
+        // パワーアップ関数テスト
+        if (typeof spawnPowerUp === 'function') {
+          addResult('powerup-results', '✅ パワーアップ生成関数存在', 'pass');
+        } else {
+          addResult('powerup-results', '❌ パワーアップ生成関数不存在', 'fail');
+        }
+
+        if (typeof applyPowerUp === 'function') {
+          addResult('powerup-results', '✅ パワーアップ適用関数存在', 'pass');
+        } else {
+          addResult('powerup-results', '❌ パワーアップ適用関数不存在', 'fail');
+        }
+
+        // パワーアップ配列テスト
+        if (Array.isArray(powerUps)) {
+          addResult('powerup-results', '✅ パワーアップ配列初期化正常', 'pass');
+        } else {
+          addResult('powerup-results', '❌ パワーアップ配列初期化異常', 'fail');
+        }
+
+        // パワーアップ生成テスト
+        const initialCount = powerUps.length;
+        spawnPowerUp(100, 100);
+        if (powerUps.length > initialCount) {
+          addResult('powerup-results', '✅ パワーアップ生成成功', 'pass');
+        } else {
+          addResult('powerup-results', '❌ パワーアップ生成失敗', 'fail');
+        }
+
+        // パワーアップ適用テスト
+        const initialScore = score;
+        applyPowerUp('score2x');
+        if (score > initialScore) {
+          addResult('powerup-results', '✅ パワーアップ適用成功', 'pass');
+        } else {
+          addResult('powerup-results', '❌ パワーアップ適用失敗', 'fail');
+        }
+
+      } catch (error) {
+        addResult('powerup-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    function testAnimations() {
+      clearResults('animation-results');
+      
+      try {
+        // アニメーション変数テスト
+        if (typeof animationFrame === 'number') {
+          addResult('animation-results', '✅ アニメーションフレーム変数存在', 'pass');
+        } else {
+          addResult('animation-results', '❌ アニメーションフレーム変数不存在', 'fail');
+        }
+
+        if (typeof backgroundOffset === 'number') {
+          addResult('animation-results', '✅ 背景オフセット変数存在', 'pass');
+        } else {
+          addResult('animation-results', '❌ 背景オフセット変数不存在', 'fail');
+        }
+
+        // パーティクルシステムテスト
+        if (Array.isArray(particles)) {
+          addResult('animation-results', '✅ パーティクル配列初期化正常', 'pass');
+        } else {
+          addResult('animation-results', '❌ パーティクル配列初期化異常', 'fail');
+        }
+
+        // パーティクル生成テスト
+        if (typeof createParticleExplosion === 'function') {
+          addResult('animation-results', '✅ パーティクル爆発関数存在', 'pass');
+        } else {
+          addResult('animation-results', '❌ パーティクル爆発関数不存在', 'fail');
+        }
+
+        // パーティクル生成テスト
+        const initialParticleCount = particles.length;
+        createParticleExplosion(200, 200, '#ff0000');
+        if (particles.length > initialParticleCount) {
+          addResult('animation-results', '✅ パーティクル生成成功', 'pass');
+        } else {
+          addResult('animation-results', '❌ パーティクル生成失敗', 'fail');
+        }
+
+        // 描画関数テスト
+        const drawFunctions = ['drawBackground', 'drawParticles', 'drawEffects'];
+        drawFunctions.forEach(funcName => {
+          if (typeof window[funcName] === 'function') {
+            addResult('animation-results', `✅ ${funcName}関数存在`, 'pass');
+          } else {
+            addResult('animation-results', `❌ ${funcName}関数不存在`, 'fail');
+          }
+        });
+
+      } catch (error) {
+        addResult('animation-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    function testGameStates() {
+      clearResults('state-results');
+      
+      try {
+        // ゲーム状態テスト
+        if (typeof gameState === 'string') {
+          addResult('state-results', '✅ ゲーム状態変数存在', 'pass');
+        } else {
+          addResult('state-results', '❌ ゲーム状態変数不存在', 'fail');
+        }
+
+        // スコアテスト
+        if (typeof score === 'number') {
+          addResult('state-results', '✅ スコア変数存在', 'pass');
+        } else {
+          addResult('state-results', '❌ スコア変数不存在', 'fail');
+        }
+
+        // リセット関数テスト
+        if (typeof resetGame === 'function') {
+          addResult('state-results', '✅ リセット関数存在', 'pass');
+        } else {
+          addResult('state-results', '❌ リセット関数不存在', 'fail');
+        }
+
+        // ゲームループ関数テスト
+        if (typeof gameLoop === 'function') {
+          addResult('state-results', '✅ ゲームループ関数存在', 'pass');
+        } else {
+          addResult('state-results', '❌ ゲームループ関数不存在', 'fail');
+        }
+
+        // キー入力テスト
+        if (typeof leftPressed === 'boolean' && typeof rightPressed === 'boolean') {
+          addResult('state-results', '✅ キー入力変数存在', 'pass');
+        } else {
+          addResult('state-results', '❌ キー入力変数不存在', 'fail');
+        }
+
+      } catch (error) {
+        addResult('state-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    function testPerformance() {
+      clearResults('performance-results');
+      
+      try {
+        const startTime = performance.now();
+        
+        // 描画関数のパフォーマンステスト
+        for (let i = 0; i < 100; i++) {
+          draw();
+        }
+        
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        if (duration < 1000) { // 1秒以内
+          addResult('performance-results', `✅ 描画パフォーマンス良好 (${duration.toFixed(2)}ms)`, 'pass');
+        } else {
+          addResult('performance-results', `⚠️ 描画パフォーマンス遅い (${duration.toFixed(2)}ms)`, 'fail');
+        }
+
+        // メモリ使用量テスト
+        const initialMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        
+        // 大量のパーティクル生成テスト
+        for (let i = 0; i < 100; i++) {
+          createParticleExplosion(Math.random() * WIDTH, Math.random() * HEIGHT, '#ff0000');
+        }
+        
+        const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        const memoryIncrease = finalMemory - initialMemory;
+        
+        if (memoryIncrease < 1000000) { // 1MB以内
+          addResult('performance-results', `✅ メモリ使用量良好 (${(memoryIncrease / 1024).toFixed(2)}KB増加)`, 'pass');
+        } else {
+          addResult('performance-results', `⚠️ メモリ使用量多い (${(memoryIncrease / 1024).toFixed(2)}KB増加)`, 'fail');
+        }
+
+        // フレームレートテスト
+        let frameCount = 0;
+        const testDuration = 1000; // 1秒
+        const startFrameTest = performance.now();
+        
+        function frameTest() {
+          frameCount++;
+          if (performance.now() - startFrameTest < testDuration) {
+            requestAnimationFrame(frameTest);
+          } else {
+            const fps = frameCount;
+            if (fps > 30) {
+              addResult('performance-results', `✅ フレームレート良好 (${fps} FPS)`, 'pass');
+            } else {
+              addResult('performance-results', `⚠️ フレームレート低い (${fps} FPS)`, 'fail');
+            }
+          }
+        }
+        
+        requestAnimationFrame(frameTest);
+
+      } catch (error) {
+        addResult('performance-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    // ページ読み込み時の自動テスト
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        addResult('basic-results', 'ℹ️ ページ読み込み完了。各テストボタンをクリックしてテストを実行してください。', 'info');
+      }, 1000);
+    });
+  </script>
+</body>
+</html> 
