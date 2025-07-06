@@ -18,15 +18,16 @@ const paddle = {
   dx: 0
 };
 
-// ボール
-const ball = {
+// ボール配列（マルチボール対応）
+let balls = [{
   x: WIDTH / 2,
   y: HEIGHT - 50,
   r: 8,
   speed: 5,
   dx: 4,
-  dy: -4
-};
+  dy: -4,
+  pierce: 0
+}];
 
 // ブロック
 let blocks = [];
@@ -72,11 +73,18 @@ function resetGame() {
   gameState = 'playing';
   paddle.x = WIDTH / 2 - paddle.w / 2;
   paddle.w = 80; // パドルサイズリセット
-  ball.x = WIDTH / 2;
-  ball.y = HEIGHT - 50;
-  ball.dx = 4;
-  ball.dy = -4;
-  ball.pierce = 0; // 貫通効果リセット
+  
+  // ボール配列をリセット
+  balls = [{
+    x: WIDTH / 2,
+    y: HEIGHT - 50,
+    r: 8,
+    speed: 5,
+    dx: 4,
+    dy: -4,
+    pierce: 0
+  }];
+  
   generateStage();
   powerUps = [];
   activeEffects = [];
@@ -125,39 +133,41 @@ function drawPaddle() {
 }
 
 function drawBall() {
-  // ボールの軌跡エフェクト
-  for (let i = 0; i < 5; i++) {
-    ctx.globalAlpha = 0.1 - i * 0.02;
+  balls.forEach(ball => {
+    // ボールの軌跡エフェクト
+    for (let i = 0; i < 5; i++) {
+      ctx.globalAlpha = 0.1 - i * 0.02;
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.dx * i * 0.5, ball.y - ball.dy * i * 0.5, ball.r - i * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.closePath();
+    }
+    ctx.globalAlpha = 1.0;
+    
+    // メインボール
+    const gradient = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, ball.r);
+    gradient.addColorStop(0, '#fff');
+    gradient.addColorStop(1, '#ccc');
+    
     ctx.beginPath();
-    ctx.arc(ball.x - ball.dx * i * 0.5, ball.y - ball.dy * i * 0.5, ball.r - i * 0.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
     ctx.fill();
     ctx.closePath();
-  }
-  ctx.globalAlpha = 1.0;
-  
-  // メインボール
-  const gradient = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, ball.r);
-  gradient.addColorStop(0, '#fff');
-  gradient.addColorStop(1, '#ccc');
-  
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = gradient;
-  ctx.fill();
-  ctx.closePath();
-  
-  // 貫通弾のエフェクト
-  if (ball.pierce > 0) {
-    ctx.strokeStyle = '#f0f';
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.7 + Math.sin(animationFrame * 0.8) * 0.3;
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r + 3, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.closePath();
-    ctx.globalAlpha = 1.0;
-  }
+    
+    // 貫通弾のエフェクト
+    if (ball.pierce > 0) {
+      ctx.strokeStyle = '#f0f';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.7 + Math.sin(animationFrame * 0.8) * 0.3;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.closePath();
+      ctx.globalAlpha = 1.0;
+    }
+  });
 }
 
 function drawBlocks() {
@@ -308,45 +318,55 @@ function update() {
   if (rightPressed && paddle.x + paddle.w < WIDTH) paddle.x += paddle.speed;
 
   // ボール移動
-  ball.x += ball.dx;
-  ball.y += ball.dy;
+  balls.forEach((ball, ballIndex) => {
+    ball.x += ball.dx;
+    ball.y += ball.dy;
 
-  // 壁反射
-  if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) ball.dx *= -1;
-  if (ball.y - ball.r < 0) ball.dy *= -1;
+    // 壁反射
+    if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) ball.dx *= -1;
+    if (ball.y - ball.r < 0) ball.dy *= -1;
 
-  // パドル反射
-  if (
-    ball.y + ball.r > paddle.y &&
-    ball.x > paddle.x &&
-    ball.x < paddle.x + paddle.w &&
-    ball.dy > 0
-  ) {
-    ball.dy *= -1;
-    // パドルのどこに当たったかで角度調整
-    let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
-    ball.dx = hitPos * 5;
-  }
+    // パドル反射
+    if (
+      ball.y + ball.r > paddle.y &&
+      ball.x > paddle.x &&
+      ball.x < paddle.x + paddle.w &&
+      ball.dy > 0
+    ) {
+      ball.dy *= -1;
+      // パドルのどこに当たったかで角度調整
+      let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+      ball.dx = hitPos * 5;
+    }
+  });
 
   // ブロック衝突
   for (let i = 0; i < blocks.length; i++) {
     let b = blocks[i];
-    if (
-      ball.x + ball.r > b.x &&
-      ball.x - ball.r < b.x + b.w &&
-      ball.y + ball.r > b.y &&
-      ball.y - ball.r < b.y + b.h
-    ) {
-      if (ball.pierce > 0) {
-        // 貫通弾の場合
-        ball.pierce--;
-        if (ball.pierce === 0) {
-          ball.dy *= -1; // 最後の1回で反射
+    let blockHit = false;
+    
+    balls.forEach(ball => {
+      if (
+        ball.x + ball.r > b.x &&
+        ball.x - ball.r < b.x + b.w &&
+        ball.y + ball.r > b.y &&
+        ball.y - ball.r < b.y + b.h
+      ) {
+        if (ball.pierce > 0) {
+          // 貫通弾の場合
+          ball.pierce--;
+          if (ball.pierce === 0) {
+            ball.dy *= -1; // 最後の1回で反射
+          }
+        } else {
+          ball.dy *= -1;
         }
-      } else {
-        ball.dy *= -1;
+        
+        blockHit = true;
       }
-      
+    });
+    
+    if (blockHit) {
       b.hp--;
       if (b.hp <= 0) {
         // パーティクルエフェクト生成
@@ -360,7 +380,6 @@ function update() {
         score += 100;
         i--;
       }
-      break;
     }
   }
 
@@ -414,8 +433,11 @@ function update() {
   // アニメーションフレーム更新
   animationFrame++;
 
-  // ボール落下
-  if (ball.y - ball.r > HEIGHT) {
+  // ボール落下チェック
+  balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
+  
+  // すべてのボールが落下したらゲームオーバー
+  if (balls.length === 0) {
     gameState = 'gameover';
   }
 
@@ -475,16 +497,38 @@ function applyPowerUp(type) {
       addEffect('パドル拡大', '#0ff', 10);
       break;
     case 'multi':
-      score += 500;
-      addEffect('マルチボール', '#ff0', 5);
+      // マルチボール効果：現在のボールを複製
+      const currentBalls = [...balls];
+      currentBalls.forEach(ball => {
+        // 新しいボールを2個生成（合計3個になる）
+        for (let i = 0; i < 2; i++) {
+          const newBall = {
+            x: ball.x,
+            y: ball.y,
+            r: ball.r,
+            speed: ball.speed,
+            dx: ball.dx + (Math.random() - 0.5) * 2, // 少しランダムな方向
+            dy: ball.dy + (Math.random() - 0.5) * 2,
+            pierce: ball.pierce
+          };
+          balls.push(newBall);
+        }
+      });
+      addEffect('マルチボール', '#ff0', 10);
       break;
     case 'pierce':
-      ball.pierce = 3; // 3回貫通
+      // すべてのボールに貫通効果を適用
+      balls.forEach(ball => {
+        ball.pierce = 3; // 3回貫通
+      });
       addEffect('貫通弾', '#f0f', 8);
       break;
     case 'slow':
-      ball.dx *= 0.7;
-      ball.dy *= 0.7;
+      // すべてのボールをスローにする
+      balls.forEach(ball => {
+        ball.dx *= 0.7;
+        ball.dy *= 0.7;
+      });
       addEffect('スロー', '#0f0', 6);
       break;
     case 'score2x':
@@ -505,8 +549,11 @@ function removeEffect(type) {
   if (type === 'パドル拡大') {
     paddle.w = Math.max(paddle.w - 40, 80);
   } else if (type === 'スロー') {
-    ball.dx /= 0.7;
-    ball.dy /= 0.7;
+    // すべてのボールの速度を元に戻す
+    balls.forEach(ball => {
+      ball.dx /= 0.7;
+      ball.dy /= 0.7;
+    });
   }
 }
 
