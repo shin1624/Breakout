@@ -43,6 +43,13 @@ let powerUps = [];
 let activeEffects = [];
 let effectMessages = [];
 
+// パーティクルシステム
+let particles = [];
+
+// アニメーション用変数
+let animationFrame = 0;
+let backgroundOffset = 0;
+
 // キー入力
 let leftPressed = false;
 let rightPressed = false;
@@ -74,6 +81,7 @@ function resetGame() {
   powerUps = [];
   activeEffects = [];
   effectMessages = [];
+  particles = [];
 }
 
 function generateStage() {
@@ -96,34 +104,131 @@ function generateStage() {
 }
 
 function drawPaddle() {
-  ctx.fillStyle = '#0af';
+  // パドルのグラデーション効果
+  const gradient = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
+  gradient.addColorStop(0, '#0af');
+  gradient.addColorStop(1, '#008');
+  
+  ctx.fillStyle = gradient;
   ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+  
+  // パワーアップ時のエフェクト
+  activeEffects.forEach(effect => {
+    if (effect.name === 'パドル拡大') {
+      ctx.strokeStyle = effect.color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.5) * 0.3;
+      ctx.strokeRect(paddle.x - 2, paddle.y - 2, paddle.w + 4, paddle.h + 4);
+      ctx.globalAlpha = 1.0;
+    }
+  });
 }
 
 function drawBall() {
+  // ボールの軌跡エフェクト
+  for (let i = 0; i < 5; i++) {
+    ctx.globalAlpha = 0.1 - i * 0.02;
+    ctx.beginPath();
+    ctx.arc(ball.x - ball.dx * i * 0.5, ball.y - ball.dy * i * 0.5, ball.r - i * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.closePath();
+  }
+  ctx.globalAlpha = 1.0;
+  
+  // メインボール
+  const gradient = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, ball.r);
+  gradient.addColorStop(0, '#fff');
+  gradient.addColorStop(1, '#ccc');
+  
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = gradient;
   ctx.fill();
   ctx.closePath();
+  
+  // 貫通弾のエフェクト
+  if (ball.pierce > 0) {
+    ctx.strokeStyle = '#f0f';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.7 + Math.sin(animationFrame * 0.8) * 0.3;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r + 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.globalAlpha = 1.0;
+  }
 }
 
 function drawBlocks() {
   blocks.forEach(block => {
-    ctx.fillStyle = block.type === 'special' ? '#f80' : '#0f0';
+    // ブロックのアニメーション効果
+    const pulse = 1 + Math.sin(animationFrame * 0.1 + block.x * 0.01) * 0.05;
+    
+    ctx.save();
+    ctx.translate(block.x + block.w / 2, block.y + block.h / 2);
+    ctx.scale(pulse, 1);
+    ctx.translate(-block.w / 2, -block.h / 2);
+    
+    // グラデーション効果
+    const gradient = ctx.createLinearGradient(0, 0, 0, block.h);
+    if (block.type === 'special') {
+      gradient.addColorStop(0, '#f80');
+      gradient.addColorStop(1, '#840');
+    } else {
+      gradient.addColorStop(0, '#0f0');
+      gradient.addColorStop(1, '#060');
+    }
+    
+    ctx.fillStyle = gradient;
     ctx.globalAlpha = block.hp === 2 ? 0.7 : 1.0;
-    ctx.fillRect(block.x, block.y, block.w, block.h);
-    ctx.globalAlpha = 1.0;
+    ctx.fillRect(0, 0, block.w, block.h);
+    
+    // 特殊ブロックの光る効果
+    if (block.type === 'special') {
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.3) * 0.3;
+      ctx.strokeRect(0, 0, block.w, block.h);
+      ctx.globalAlpha = 1.0;
+    }
+    
+    ctx.restore();
   });
 }
 
 function drawPowerUps() {
   powerUps.forEach(pu => {
+    // 回転アニメーション
+    const rotation = animationFrame * 0.1;
+    const scale = 1 + Math.sin(animationFrame * 0.2) * 0.2;
+    
+    ctx.save();
+    ctx.translate(pu.x, pu.y);
+    ctx.rotate(rotation);
+    ctx.scale(scale, scale);
+    
+    // グラデーション効果
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+    gradient.addColorStop(0, pu.color);
+    gradient.addColorStop(1, '#000');
+    
     ctx.beginPath();
-    ctx.arc(pu.x, pu.y, 10, 0, Math.PI * 2);
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.closePath();
+    
+    // 光る効果
+    ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.3) * 0.3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fillStyle = pu.color;
     ctx.fill();
     ctx.closePath();
+    ctx.globalAlpha = 1.0;
+    
+    ctx.restore();
     
     // パワーアップの説明テキスト
     ctx.fillStyle = pu.color;
@@ -138,7 +243,7 @@ function drawEffects() {
   activeEffects.forEach(effect => {
     ctx.fillStyle = effect.color;
     ctx.font = '14px sans-serif';
-    ctx.fillText(`${effect.name}: ${effect.duration}秒`, 10, y);
+    ctx.fillText(`${effect.name}: ${Math.ceil(effect.duration)}秒`, 10, y);
     y += 20;
   });
   
@@ -152,13 +257,47 @@ function drawEffects() {
   });
 }
 
+function drawParticles() {
+  particles.forEach((particle, idx) => {
+    ctx.globalAlpha = particle.alpha;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+function drawBackground() {
+  // 動的背景エフェクト
+  backgroundOffset += 0.5;
+  
+  // 星のような背景
+  for (let i = 0; i < 50; i++) {
+    const x = (i * 37) % WIDTH;
+    const y = (i * 73 + backgroundOffset) % HEIGHT;
+    const size = Math.sin(i + animationFrame * 0.1) * 0.5 + 0.5;
+    
+    ctx.globalAlpha = 0.3 + Math.sin(animationFrame * 0.05 + i) * 0.2;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
+  }
+  ctx.globalAlpha = 1.0;
+}
+
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  drawBackground();
   drawPaddle();
   drawBall();
   drawBlocks();
   drawPowerUps();
   drawEffects();
+  drawParticles();
 }
 
 function update() {
@@ -210,6 +349,9 @@ function update() {
       
       b.hp--;
       if (b.hp <= 0) {
+        // パーティクルエフェクト生成
+        createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, b.type === 'special' ? '#f80' : '#0f0');
+        
         // パワーアップドロップ
         if (Math.random() < 0.2) {
           spawnPowerUp(b.x + b.w / 2, b.y + b.h / 2);
@@ -255,6 +397,22 @@ function update() {
       effectMessages.splice(idx, 1);
     }
   });
+  
+  // パーティクルの更新
+  particles.forEach((particle, idx) => {
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+    particle.vy += 0.1; // 重力
+    particle.alpha -= 0.02;
+    particle.size -= 0.1;
+    
+    if (particle.alpha <= 0 || particle.size <= 0) {
+      particles.splice(idx, 1);
+    }
+  });
+  
+  // アニメーションフレーム更新
+  animationFrame++;
 
   // ボール落下
   if (ball.y - ball.r > HEIGHT) {
@@ -349,6 +507,23 @@ function removeEffect(type) {
   } else if (type === 'スロー') {
     ball.dx /= 0.7;
     ball.dy /= 0.7;
+  }
+}
+
+function createParticleExplosion(x, y, color) {
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI * 2 * i) / 8;
+    const speed = 2 + Math.random() * 3;
+    
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 3 + Math.random() * 3,
+      color: color,
+      alpha: 1.0
+    });
   }
 }
 
