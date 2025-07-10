@@ -82,6 +82,14 @@ function playSE(name) {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') leftPressed = true;
   if (e.key === 'ArrowRight') rightPressed = true;
+  if (gameState === 'title' && e.code === 'Space') {
+    startGame();
+  }
+  if (gameState === 'clear' && e.code === 'Space') {
+    stage++;
+    resetGame(true);
+    gameState = 'playing';
+  }
 });
 document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft') leftPressed = false;
@@ -412,173 +420,187 @@ function drawTitle() {
 }
 
 function draw() {
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  try {
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
   
-  if (gameState === 'title') {
-    drawTitle();
-  } else {
-    drawBackground();
-    drawPaddle();
-    drawBall();
-    drawBlocks();
-    drawPowerUps();
-    drawEffects();
-    drawParticles();
+    if (gameState === 'title') {
+      drawTitle();
+    } else {
+      drawBackground();
+      drawPaddle();
+      drawBall();
+      drawBlocks();
+      drawPowerUps();
+      drawEffects();
+      drawParticles();
+      if (gameState === 'clear') {
+        ctx.fillStyle = '#4f4';
+        ctx.font = '32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('クリア！', WIDTH / 2, HEIGHT / 2);
+        ctx.font = '20px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('スペースキーで次のステージへ', WIDTH / 2, HEIGHT / 2 + 40);
+        ctx.textAlign = 'left';
+      }
+    }
+  } catch (e) {
+    console.error('draw error:', e);
   }
 }
 
 function update() {
-  if (gameState !== 'playing') return;
+  try {
+    if (gameState !== 'playing') return;
 
-  // パドル移動
-  if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
-  if (rightPressed && paddle.x + paddle.w < WIDTH) paddle.x += paddle.speed;
+    // パドル移動
+    if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
+    if (rightPressed && paddle.x + paddle.w < WIDTH) paddle.x += paddle.speed;
 
-  // ボール移動
-  balls.forEach((ball, ballIndex) => {
-    ball.x += ball.dx;
-    ball.y += ball.dy;
+    // ボール移動
+    balls.forEach((ball, ballIndex) => {
+      ball.x += ball.dx;
+      ball.y += ball.dy;
 
-    // 壁反射
-    if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) {
-      ball.dx *= -1;
-      playSE('hit');
-    }
-    if (ball.y - ball.r < 0) {
-      ball.dy *= -1;
-      playSE('hit');
-    }
+      // 壁反射
+      if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) {
+        ball.dx *= -1;
+        playSE('hit');
+      }
+      if (ball.y - ball.r < 0) {
+        ball.dy *= -1;
+        playSE('hit');
+      }
 
-    // パドル反射
-    if (
-      ball.y + ball.r > paddle.y &&
-      ball.x > paddle.x &&
-      ball.x < paddle.x + paddle.w &&
-      ball.dy > 0
-    ) {
-      ball.dy *= -1;
-      // パドルのどこに当たったかで角度調整
-      let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
-      ball.dx = hitPos * 5;
-      playSE('hit');
-    }
-  });
-
-  // ブロック衝突
-  for (let i = 0; i < blocks.length; i++) {
-    let b = blocks[i];
-    let blockHit = false;
-    
-    balls.forEach(ball => {
+      // パドル反射
       if (
-        ball.x + ball.r > b.x &&
-        ball.x - ball.r < b.x + b.w &&
-        ball.y + ball.r > b.y &&
-        ball.y - ball.r < b.y + b.h
+        ball.y + ball.r > paddle.y &&
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.w &&
+        ball.dy > 0
       ) {
-        if (ball.pierce > 0) {
-          // 貫通弾の場合
-          ball.pierce--;
-          if (ball.pierce === 0) {
-            ball.dy *= -1; // 最後の1回で反射
+        ball.dy *= -1;
+        // パドルのどこに当たったかで角度調整
+        let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+        ball.dx = hitPos * 5;
+        playSE('hit');
+      }
+    });
+
+    // ブロック衝突
+    for (let i = 0; i < blocks.length; i++) {
+      let b = blocks[i];
+      let blockHit = false;
+      
+      balls.forEach(ball => {
+        if (
+          ball.x + ball.r > b.x &&
+          ball.x - ball.r < b.x + b.w &&
+          ball.y + ball.r > b.y &&
+          ball.y - ball.r < b.y + b.h
+        ) {
+          if (ball.pierce > 0) {
+            // 貫通弾の場合
+            ball.pierce--;
+            if (ball.pierce === 0) {
+              ball.dy *= -1; // 最後の1回で反射
+            }
+          } else {
+            ball.dy *= -1;
           }
-        } else {
-          ball.dy *= -1;
+          
+          blockHit = true;
         }
-        
-        blockHit = true;
+      });
+      
+      if (blockHit) {
+        b.hp--;
+        if (b.hp <= 0) {
+          // パーティクルエフェクト生成
+          createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, b.type === 'special' ? '#f80' : '#0f0');
+          
+          // パワーアップドロップ
+          if (Math.random() < 0.2) {
+            spawnPowerUp(b.x + b.w / 2, b.y + b.h / 2);
+          }
+          blocks.splice(i, 1);
+          score += 100;
+          i--;
+          playSE('break');
+        }
+      }
+    }
+
+    // パワーアップ落下
+    powerUps.forEach((pu, idx) => {
+      pu.y += pu.speed;
+      // パドル取得
+      if (
+        pu.y + 10 > paddle.y &&
+        pu.x > paddle.x &&
+        pu.x < paddle.x + paddle.w
+      ) {
+        applyPowerUp(pu.type);
+        playSE('powerup');
+        powerUps.splice(idx, 1);
+      } else if (pu.y > HEIGHT) {
+        powerUps.splice(idx, 1);
       }
     });
     
-    if (blockHit) {
-      b.hp--;
-      if (b.hp <= 0) {
-        // パーティクルエフェクト生成
-        createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, b.type === 'special' ? '#f80' : '#0f0');
-        
-        // パワーアップドロップ
-        if (Math.random() < 0.2) {
-          spawnPowerUp(b.x + b.w / 2, b.y + b.h / 2);
-        }
-        blocks.splice(i, 1);
-        score += 100;
-        i--;
-        playSE('break');
+    // エフェクトの更新
+    activeEffects.forEach((effect, idx) => {
+      effect.duration -= 1/60; // 60FPS想定
+      if (effect.duration <= 0) {
+        removeEffect(effect.type);
+        activeEffects.splice(idx, 1);
       }
-    }
-  }
-
-  // パワーアップ落下
-  powerUps.forEach((pu, idx) => {
-    pu.y += pu.speed;
-    // パドル取得
-    if (
-      pu.y + 10 > paddle.y &&
-      pu.x > paddle.x &&
-      pu.x < paddle.x + paddle.w
-    ) {
-      applyPowerUp(pu.type);
-      playSE('powerup');
-      powerUps.splice(idx, 1);
-    } else if (pu.y > HEIGHT) {
-      powerUps.splice(idx, 1);
-    }
-  });
-  
-  // エフェクトの更新
-  activeEffects.forEach((effect, idx) => {
-    effect.duration -= 1/60; // 60FPS想定
-    if (effect.duration <= 0) {
-      removeEffect(effect.type);
-      activeEffects.splice(idx, 1);
-    }
-  });
-  
-  // エフェクトメッセージの更新
-  effectMessages.forEach((msg, idx) => {
-    msg.y -= 1;
-    msg.alpha -= 0.02;
-    if (msg.alpha <= 0) {
-      effectMessages.splice(idx, 1);
-    }
-  });
-  
-  // パーティクルの更新
-  particles.forEach((particle, idx) => {
-    particle.x += particle.vx;
-    particle.y += particle.vy;
-    particle.vy += 0.1; // 重力
-    particle.alpha -= 0.02;
-    particle.size -= 0.1;
+    });
     
-    if (particle.alpha <= 0 || particle.size <= 0) {
-      particles.splice(idx, 1);
+    // エフェクトメッセージの更新
+    effectMessages.forEach((msg, idx) => {
+      msg.y -= 1;
+      msg.alpha -= 0.02;
+      if (msg.alpha <= 0) {
+        effectMessages.splice(idx, 1);
+      }
+    });
+    
+    // パーティクルの更新
+    particles.forEach((particle, idx) => {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      particle.vy += 0.1; // 重力
+      particle.alpha -= 0.02;
+      particle.size -= 0.1;
+      
+      if (particle.alpha <= 0 || particle.size <= 0) {
+        particles.splice(idx, 1);
+      }
+    });
+    
+    // アニメーションフレーム更新
+    animationFrame++;
+
+    // ボール落下チェック
+    balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
+    
+    // すべてのボールが落下したらゲームオーバー
+    if (balls.length === 0) {
+      gameState = 'gameover';
+      playSE('gameover');
     }
-  });
-  
-  // アニメーションフレーム更新
-  animationFrame++;
 
-  // ボール落下チェック
-  balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
-  
-  // すべてのボールが落下したらゲームオーバー
-  if (balls.length === 0) {
-    gameState = 'gameover';
-    playSE('gameover');
+    // クリア判定
+    if (blocks.length === 0) {
+      gameState = 'clear';
+      playSE('clear');
+    }
+
+    document.getElementById('score').textContent = `スコア: ${score}`;
+  } catch (e) {
+    console.error('update error:', e);
   }
-
-  // クリア判定
-  if (blocks.length === 0) {
-    gameState = 'clear';
-    playSE('clear');
-    setTimeout(() => {
-      stage++;
-      resetGame(true);
-    }, 1200);
-  }
-
-  document.getElementById('score').textContent = `スコア: ${score}`;
 }
 
 function spawnPowerUp(x, y) {
@@ -606,67 +628,71 @@ function getPowerUpName(type) {
 }
 
 function applyPowerUp(type) {
-  // エフェクトメッセージを表示
-  const effectNames = {
-    'expand': 'パドル拡大！',
-    'multi': 'マルチボール！',
-    'pierce': '貫通弾！',
-    'slow': 'スロー！',
-    'score2x': 'スコア2倍！'
-  };
-  
-  effectMessages.push({
-    text: effectNames[type] || 'パワーアップ！',
-    x: WIDTH / 2 - 50,
-    y: HEIGHT / 2,
-    color: '#fff',
-    alpha: 1.0
-  });
-  
-  switch (type) {
-    case 'expand':
-      paddle.w = Math.min(paddle.w + 40, WIDTH - 20);
-      addEffect('パドル拡大', '#0ff', 10);
-      break;
-    case 'multi':
-      // マルチボール効果：現在のボールを複製
-      const currentBalls = [...balls];
-      currentBalls.forEach(ball => {
-        // 新しいボールを2個生成（合計3個になる）
-        for (let i = 0; i < 2; i++) {
-          const newBall = {
-            x: ball.x,
-            y: ball.y,
-            r: ball.r,
-            speed: ball.speed,
-            dx: ball.dx + (Math.random() - 0.5) * 2, // 少しランダムな方向
-            dy: ball.dy + (Math.random() - 0.5) * 2,
-            pierce: ball.pierce
-          };
-          balls.push(newBall);
-        }
-      });
-      addEffect('マルチボール', '#ff0', 10);
-      break;
-    case 'pierce':
-      // すべてのボールに貫通効果を適用
-      balls.forEach(ball => {
-        ball.pierce = 3; // 3回貫通
-      });
-      addEffect('貫通弾', '#f0f', 8);
-      break;
-    case 'slow':
-      // すべてのボールをスローにする
-      balls.forEach(ball => {
-        ball.dx *= 0.7;
-        ball.dy *= 0.7;
-      });
-      addEffect('スロー', '#0f0', 6);
-      break;
-    case 'score2x':
-      score += 1000;
-      addEffect('スコア2倍', '#f00', 12);
-      break;
+  try {
+    // エフェクトメッセージを表示
+    const effectNames = {
+      'expand': 'パドル拡大！',
+      'multi': 'マルチボール！',
+      'pierce': '貫通弾！',
+      'slow': 'スロー！',
+      'score2x': 'スコア2倍！'
+    };
+    
+    effectMessages.push({
+      text: effectNames[type] || 'パワーアップ！',
+      x: WIDTH / 2 - 50,
+      y: HEIGHT / 2,
+      color: '#fff',
+      alpha: 1.0
+    });
+    
+    switch (type) {
+      case 'expand':
+        paddle.w = Math.min(paddle.w + 40, WIDTH - 20);
+        addEffect('パドル拡大', '#0ff', 10);
+        break;
+      case 'multi':
+        // マルチボール効果：現在のボールを複製
+        const currentBalls = [...balls];
+        currentBalls.forEach(ball => {
+          // 新しいボールを2個生成（合計3個になる）
+          for (let i = 0; i < 2; i++) {
+            const newBall = {
+              x: ball.x,
+              y: ball.y,
+              r: ball.r,
+              speed: ball.speed,
+              dx: ball.dx + (Math.random() - 0.5) * 2, // 少しランダムな方向
+              dy: ball.dy + (Math.random() - 0.5) * 2,
+              pierce: ball.pierce
+            };
+            balls.push(newBall);
+          }
+        });
+        addEffect('マルチボール', '#ff0', 10);
+        break;
+      case 'pierce':
+        // すべてのボールに貫通効果を適用
+        balls.forEach(ball => {
+          ball.pierce = 3; // 3回貫通
+        });
+        addEffect('貫通弾', '#f0f', 8);
+        break;
+      case 'slow':
+        // すべてのボールをスローにする
+        balls.forEach(ball => {
+          ball.dx *= 0.7;
+          ball.dy *= 0.7;
+        });
+        addEffect('スロー', '#0f0', 6);
+        break;
+      case 'score2x':
+        score += 1000;
+        addEffect('スコア2倍', '#f00', 12);
+        break;
+    }
+  } catch (e) {
+    console.error('applyPowerUp error:', e);
   }
 }
 
@@ -707,18 +733,22 @@ function createParticleExplosion(x, y, color) {
 }
 
 function gameLoop() {
-  update();
-  draw();
-  if (gameState === 'gameover') {
-    ctx.fillStyle = '#f44';
-    ctx.font = '32px sans-serif';
-    ctx.fillText('ゲームオーバー', WIDTH / 2 - 90, HEIGHT / 2);
-  } else if (gameState === 'clear') {
-    ctx.fillStyle = '#4f4';
-    ctx.font = '32px sans-serif';
-    ctx.fillText('クリア！', WIDTH / 2 - 60, HEIGHT / 2);
+  try {
+    update();
+    draw();
+    if (gameState === 'gameover') {
+      ctx.fillStyle = '#f44';
+      ctx.font = '32px sans-serif';
+      ctx.fillText('ゲームオーバー', WIDTH / 2 - 90, HEIGHT / 2);
+    } else if (gameState === 'clear') {
+      ctx.fillStyle = '#4f4';
+      ctx.font = '32px sans-serif';
+      ctx.fillText('クリア！', WIDTH / 2 - 60, HEIGHT / 2);
+    }
+    requestAnimationFrame(gameLoop);
+  } catch (e) {
+    console.error('gameLoop error:', e);
   }
-  requestAnimationFrame(gameLoop);
 }
 
 // 初期化
