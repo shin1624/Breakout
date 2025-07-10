@@ -136,8 +136,10 @@ function startGame() {
 }
 
 function resetGame(isNextStage = false) {
-  if (!isNextStage) stage = 1;
-  score = 0;
+  if (!isNextStage) {
+    stage = 1;
+    score = 0;
+  }
   gameState = 'playing';
   paddle.x = WIDTH / 2 - paddle.w / 2;
   paddle.w = 80; // パドルサイズリセット
@@ -182,16 +184,14 @@ function generateStage(stageNum = 1) {
 function drawPaddle() {
   // パドルのグラデーション効果
   const gradient = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
-  gradient.addColorStop(0, '#0af');
-  gradient.addColorStop(1, '#008');
-  
+  gradient.addColorStop(0, '#e3f0ff');
+  gradient.addColorStop(1, '#b3d8ff');
   ctx.fillStyle = gradient;
   ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
-  
   // パワーアップ時のエフェクト
   activeEffects.forEach(effect => {
     if (effect.name === 'パドル拡大') {
-      ctx.strokeStyle = effect.color;
+      ctx.strokeStyle = '#4f8cff';
       ctx.lineWidth = 3;
       ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.5) * 0.3;
       ctx.strokeRect(paddle.x - 2, paddle.y - 2, paddle.w + 4, paddle.h + 4);
@@ -202,31 +202,25 @@ function drawPaddle() {
 
 function drawBall() {
   balls.forEach(ball => {
-    // ボールの軌跡エフェクト
     for (let i = 0; i < 5; i++) {
       ctx.globalAlpha = 0.1 - i * 0.02;
       ctx.beginPath();
       ctx.arc(ball.x - ball.dx * i * 0.5, ball.y - ball.dy * i * 0.5, ball.r - i * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#b3d8ff';
       ctx.fill();
       ctx.closePath();
     }
     ctx.globalAlpha = 1.0;
-    
-    // メインボール
     const gradient = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, ball.r);
     gradient.addColorStop(0, '#fff');
-    gradient.addColorStop(1, '#ccc');
-    
+    gradient.addColorStop(1, '#4f8cff');
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
     ctx.fillStyle = gradient;
     ctx.fill();
     ctx.closePath();
-    
-    // 貫通弾のエフェクト
     if (ball.pierce > 0) {
-      ctx.strokeStyle = '#f0f';
+      ctx.strokeStyle = '#6ed6ff';
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.7 + Math.sin(animationFrame * 0.8) * 0.3;
       ctx.beginPath();
@@ -240,76 +234,62 @@ function drawBall() {
 
 function drawBlocks() {
   blocks.forEach(block => {
-    // ブロックのアニメーション効果
     const pulse = 1 + Math.sin(animationFrame * 0.1 + block.x * 0.01) * 0.05;
-    
     ctx.save();
     ctx.translate(block.x + block.w / 2, block.y + block.h / 2);
     ctx.scale(pulse, 1);
     ctx.translate(-block.w / 2, -block.h / 2);
-    
-    // グラデーション効果
     const gradient = ctx.createLinearGradient(0, 0, 0, block.h);
     if (block.type === 'special') {
-      gradient.addColorStop(0, '#f80');
-      gradient.addColorStop(1, '#840');
+      gradient.addColorStop(0, '#ffe7ba');
+      gradient.addColorStop(1, '#ffd6e0');
     } else {
-      gradient.addColorStop(0, '#0f0');
-      gradient.addColorStop(1, '#060');
+      gradient.addColorStop(0, '#e3f0ff');
+      gradient.addColorStop(1, '#b3d8ff');
     }
-    
     ctx.fillStyle = gradient;
     ctx.globalAlpha = block.hp === 2 ? 0.7 : 1.0;
     ctx.fillRect(0, 0, block.w, block.h);
-    
-    // 特殊ブロックの光る効果
     if (block.type === 'special') {
-      ctx.strokeStyle = '#ff0';
+      ctx.strokeStyle = '#ffb86b';
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.3) * 0.3;
       ctx.strokeRect(0, 0, block.w, block.h);
       ctx.globalAlpha = 1.0;
     }
-    
     ctx.restore();
   });
 }
 
 function drawPowerUps() {
   powerUps.forEach(pu => {
-    // 回転アニメーション
     const rotation = animationFrame * 0.1;
     const scale = 1 + Math.sin(animationFrame * 0.2) * 0.2;
-    
     ctx.save();
     ctx.translate(pu.x, pu.y);
     ctx.rotate(rotation);
     ctx.scale(scale, scale);
-    
-    // グラデーション効果
     const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
-    gradient.addColorStop(0, pu.color);
-    gradient.addColorStop(1, '#000');
-    
+    if (pu.type === 'expand') gradient.addColorStop(0, '#4f8cff');
+    else if (pu.type === 'multi') gradient.addColorStop(0, '#6ed6ff');
+    else if (pu.type === 'pierce') gradient.addColorStop(0, '#ffd6e0');
+    else if (pu.type === 'slow') gradient.addColorStop(0, '#b3d8ff');
+    else if (pu.type === 'score2x') gradient.addColorStop(0, '#ffb86b');
+    gradient.addColorStop(1, '#fff');
     ctx.beginPath();
     ctx.arc(0, 0, 10, 0, Math.PI * 2);
     ctx.fillStyle = gradient;
     ctx.fill();
     ctx.closePath();
-    
-    // 光る効果
     ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.3) * 0.3;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
-    ctx.fillStyle = pu.color;
+    ctx.fillStyle = '#e9ecef';
     ctx.fill();
     ctx.closePath();
     ctx.globalAlpha = 1.0;
-    
     ctx.restore();
-    
-    // パワーアップの説明テキスト
-    ctx.fillStyle = pu.color;
+    ctx.fillStyle = '#4f8cff';
     ctx.font = '12px sans-serif';
     ctx.fillText(getPowerUpName(pu.type), pu.x - 20, pu.y - 15);
   });
@@ -368,54 +348,61 @@ function drawBackground() {
 }
 
 function drawTitle() {
-  // 背景
   drawBackground();
-  
   // タイトル
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 48px sans-serif';
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 48px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('新型ブロック崩し', WIDTH / 2, HEIGHT / 3);
-  
   // サブタイトル
-  ctx.font = '20px sans-serif';
-  ctx.fillStyle = '#ccc';
+  ctx.font = '20px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+  ctx.fillStyle = '#4f8cff';
   ctx.fillText('パワーアップとアニメーションで進化したブロック崩し', WIDTH / 2, HEIGHT / 3 + 40);
-  
   // 操作方法
-  ctx.font = '16px sans-serif';
-  ctx.fillStyle = '#aaa';
+  ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+  ctx.fillStyle = '#888';
   ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 20);
   ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 40);
-  
   // スタートボタン
   const buttonY = HEIGHT * 0.7;
   const buttonW = 200;
   const buttonH = 50;
   const buttonX = WIDTH / 2 - buttonW / 2;
-  
   // ボタンの背景
-  ctx.fillStyle = '#0af';
-  ctx.fillRect(buttonX, buttonY, buttonW, buttonH);
-  
+  ctx.save();
+  ctx.shadowColor = '#4f8cff33';
+  ctx.shadowBlur = 16;
+  ctx.fillStyle = 'linear-gradient(90deg, #4f8cff 0%, #6ed6ff 100%)';
+  ctx.fillStyle = '#4f8cff';
+  ctx.globalAlpha = 0.95;
+  ctx.beginPath();
+  ctx.moveTo(buttonX + 16, buttonY);
+  ctx.lineTo(buttonX + buttonW - 16, buttonY);
+  ctx.quadraticCurveTo(buttonX + buttonW, buttonY, buttonX + buttonW, buttonY + 16);
+  ctx.lineTo(buttonX + buttonW, buttonY + buttonH - 16);
+  ctx.quadraticCurveTo(buttonX + buttonW, buttonY + buttonH, buttonX + buttonW - 16, buttonY + buttonH);
+  ctx.lineTo(buttonX + 16, buttonY + buttonH);
+  ctx.quadraticCurveTo(buttonX, buttonY + buttonH, buttonX, buttonY + buttonH - 16);
+  ctx.lineTo(buttonX, buttonY + 16);
+  ctx.quadraticCurveTo(buttonX, buttonY, buttonX + 16, buttonY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
   // ボタンのテキスト
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 24px sans-serif';
+  ctx.font = 'bold 24px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.fillText('スタート', WIDTH / 2, buttonY + 32);
-  
   // ボタンのホバーエフェクト
   if (mouseX >= buttonX && mouseX <= buttonX + buttonW && 
       mouseY >= buttonY && mouseY <= buttonY + buttonH) {
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = '#6ed6ff';
     ctx.lineWidth = 3;
     ctx.strokeRect(buttonX - 2, buttonY - 2, buttonW + 4, buttonH + 4);
   }
-  
   // バージョン情報
-  ctx.font = '12px sans-serif';
-  ctx.fillStyle = '#666';
+  ctx.font = '12px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+  ctx.fillStyle = '#bbb';
   ctx.fillText('Version 1.0', WIDTH / 2, HEIGHT - 20);
-  
   ctx.textAlign = 'left';
 }
 
