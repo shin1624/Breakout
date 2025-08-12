@@ -90,10 +90,10 @@ document.addEventListener('keydown', (e) => {
     resetGame(true);
     gameState = 'playing';
   }
-  // ポーズ機能 - PキーまたはSpaceキーでポーズ/再開
-  if (gameState === 'playing' && (e.key === 'p' || e.key === 'P' || e.code === 'Space')) {
+  // ポーズ機能 - PキーまたはESCキーでポーズ/再開
+  if (gameState === 'playing' && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
     gameState = 'paused';
-  } else if (gameState === 'paused' && (e.key === 'p' || e.key === 'P' || e.code === 'Space')) {
+  } else if (gameState === 'paused' && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
     gameState = 'playing';
   }
 });
@@ -450,7 +450,7 @@ function draw() {
         // 再開方法の説明
         ctx.font = '24px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
         ctx.fillStyle = '#4f8cff';
-        ctx.fillText('Pキーまたはスペースキーで再開', WIDTH / 2, HEIGHT / 2 + 20);
+        ctx.fillText('PキーまたはESCキーで再開', WIDTH / 2, HEIGHT / 2 + 20);
         
         // 操作方法の再表示
         ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
@@ -467,7 +467,10 @@ function draw() {
 
 function update() {
   try {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' && gameState !== 'paused') return;
+    
+    // ポーズ中は更新処理をスキップ
+    if (gameState === 'paused') return;
 
     // パドル移動
     if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
