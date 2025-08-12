@@ -5,7 +5,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
 // ゲーム状態
-let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear'
+let gameState = 'title'; // 'title', 'playing', 'paused', 'gameover', 'clear'
 let score = 0;
 let stage = 1;
 
@@ -88,6 +88,12 @@ document.addEventListener('keydown', (e) => {
   if (gameState === 'clear' && e.code === 'Space') {
     stage++;
     resetGame(true);
+    gameState = 'playing';
+  }
+  // ポーズ機能 - PキーまたはSpaceキーでポーズ/再開
+  if (gameState === 'playing' && (e.key === 'p' || e.key === 'P' || e.code === 'Space')) {
+    gameState = 'paused';
+  } else if (gameState === 'paused' && (e.key === 'p' || e.key === 'P' || e.code === 'Space')) {
     gameState = 'playing';
   }
 });
@@ -362,7 +368,8 @@ function drawTitle() {
   ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.fillStyle = '#888';
   ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 20);
-  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 40);
+  ctx.fillText('Pキーまたはスペースキーでポーズ', WIDTH / 2, HEIGHT / 2 + 40);
+  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 60);
   // スタートボタン
   const buttonY = HEIGHT * 0.7;
   const buttonW = 200;
@@ -428,6 +435,28 @@ function draw() {
         ctx.font = '20px sans-serif';
         ctx.fillStyle = '#fff';
         ctx.fillText('スペースキーで次のステージへ', WIDTH / 2, HEIGHT / 2 + 40);
+        ctx.textAlign = 'left';
+      } else if (gameState === 'paused') {
+        // ポーズ画面のオーバーレイ
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        // ポーズタイトル
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 48px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('ポーズ', WIDTH / 2, HEIGHT / 2 - 40);
+        
+        // 再開方法の説明
+        ctx.font = '24px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+        ctx.fillStyle = '#4f8cff';
+        ctx.fillText('Pキーまたはスペースキーで再開', WIDTH / 2, HEIGHT / 2 + 20);
+        
+        // 操作方法の再表示
+        ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+        ctx.fillStyle = '#ccc';
+        ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 60);
+        
         ctx.textAlign = 'left';
       }
     }
