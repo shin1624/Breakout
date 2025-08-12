@@ -16,8 +16,18 @@ const paddle = {
   w: 80,
   h: 12,
   speed: 7,
-  dx: 0
+  dx: 0,
+  shield: false,
+  shieldTimer: 0
 };
+
+// ライフシステム
+let lives = 3;
+let maxLives = 5;
+
+// レーザーシステム
+let lasers = [];
+let laserCooldown = 0;
 
 // ボール配列（マルチボール対応）
 let balls = [{
@@ -145,10 +155,13 @@ function resetGame(isNextStage = false) {
   if (!isNextStage) {
     stage = 1;
     score = 0;
+    lives = 3; // ライフリセット
   }
   gameState = 'playing';
   paddle.x = WIDTH / 2 - paddle.w / 2;
   paddle.w = 80; // パドルサイズリセット
+  paddle.shield = false; // シールドリセット
+  paddle.shieldTimer = 0;
   balls = [{
     x: WIDTH / 2,
     y: HEIGHT - 50,
@@ -163,6 +176,8 @@ function resetGame(isNextStage = false) {
   activeEffects = [];
   effectMessages = [];
   particles = [];
+  lasers = [];
+  laserCooldown = 0;
   document.getElementById('stage').textContent = `ステージ: ${stage}`;
 }
 
@@ -204,6 +219,15 @@ function drawPaddle() {
       ctx.globalAlpha = 1.0;
     }
   });
+  
+  // シールド効果の描画
+  if (paddle.shield) {
+    ctx.strokeStyle = '#00f';
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.6 + Math.sin(animationFrame * 0.3) * 0.4;
+    ctx.strokeRect(paddle.x - 4, paddle.y - 4, paddle.w + 8, paddle.h + 8);
+    ctx.globalAlpha = 1.0;
+  }
 }
 
 function drawBall() {
@@ -281,6 +305,11 @@ function drawPowerUps() {
     else if (pu.type === 'pierce') gradient.addColorStop(0, '#ffd6e0');
     else if (pu.type === 'slow') gradient.addColorStop(0, '#b3d8ff');
     else if (pu.type === 'score2x') gradient.addColorStop(0, '#ffb86b');
+    else if (pu.type === 'shield') gradient.addColorStop(0, '#4f8cff');
+    else if (pu.type === 'laser') gradient.addColorStop(0, '#ff8c00');
+    else if (pu.type === 'bomb') gradient.addColorStop(0, '#8b0000');
+    else if (pu.type === 'life') gradient.addColorStop(0, '#00ff8c');
+    else if (pu.type === 'speedup') gradient.addColorStop(0, '#ff00ff');
     gradient.addColorStop(1, '#fff');
     ctx.beginPath();
     ctx.arc(0, 0, 10, 0, Math.PI * 2);
@@ -301,9 +330,28 @@ function drawPowerUps() {
   });
 }
 
+function drawLasers() {
+  lasers.forEach(laser => {
+    ctx.strokeStyle = '#ff8c00';
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(laser.x, laser.y);
+    ctx.lineTo(laser.x, 0);
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+  });
+}
+
 function drawEffects() {
+  // ライフの表示
+  ctx.fillStyle = '#f00';
+  ctx.font = '16px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`ライフ: ${lives}`, 10, 20);
+  
   // アクティブな効果を表示
-  let y = 30;
+  let y = 50;
   activeEffects.forEach(effect => {
     ctx.fillStyle = effect.color;
     ctx.font = '14px sans-serif';
@@ -425,6 +473,7 @@ function draw() {
       drawBall();
       drawBlocks();
       drawPowerUps();
+      drawLasers();
       drawEffects();
       drawParticles();
       if (gameState === 'clear') {
@@ -472,6 +521,15 @@ function update() {
     // パドル移動
     if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
     if (rightPressed && paddle.x + paddle.w < WIDTH) paddle.x += paddle.speed;
+    
+    // シールド効果の更新
+    if (paddle.shield) {
+      paddle.shieldTimer--;
+      if (paddle.shieldTimer <= 0) {
+        paddle.shield = false;
+        paddle.shieldTimer = 0;
+      }
+    }
 
     // ボール移動
     balls.forEach((ball, ballIndex) => {
@@ -564,6 +622,41 @@ function update() {
       }
     });
     
+    // レーザーの更新
+    if (laserCooldown > 0) {
+      laserCooldown--;
+      // レーザー発射（自動）
+      if (laserCooldown % 20 === 0) { // 20フレームごとに発射
+        lasers.push({
+          x: paddle.x + paddle.w / 2,
+          y: paddle.y
+        });
+      }
+    }
+    
+    // レーザーの移動と衝突判定
+    lasers.forEach((laser, idx) => {
+      // ブロックとの衝突判定
+      for (let i = 0; i < blocks.length; i++) {
+        let b = blocks[i];
+        if (laser.x > b.x && laser.x < b.x + b.w && laser.y < b.y + b.h) {
+          b.hp--;
+          if (b.hp <= 0) {
+            createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, b.type === 'special' ? '#f80' : '#0f0');
+            if (Math.random() < 0.2) {
+              spawnPowerUp(b.x + b.w / 2, b.y + b.h / 2);
+            }
+            blocks.splice(i, 1);
+            score += 100;
+            i--;
+            playSE('break');
+          }
+          lasers.splice(idx, 1);
+          break;
+        }
+      }
+    });
+    
     // エフェクトの更新
     activeEffects.forEach((effect, idx) => {
       effect.duration -= 1/60; // 60FPS想定
@@ -599,12 +692,35 @@ function update() {
     animationFrame++;
 
     // ボール落下チェック
+    const fallenBalls = balls.filter(ball => ball.y - ball.r > HEIGHT);
     balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
     
-    // すべてのボールが落下したらゲームオーバー
-    if (balls.length === 0) {
-      gameState = 'gameover';
-      playSE('gameover');
+    // ボールが落下した場合のライフ処理
+    if (fallenBalls.length > 0) {
+      if (paddle.shield) {
+        // シールドがある場合はライフを減らさない
+        paddle.shield = false;
+        paddle.shieldTimer = 0;
+        addEffect('シールド破損', '#00f', 3);
+      } else {
+        // ライフを減らす
+        lives--;
+        if (lives <= 0) {
+          gameState = 'gameover';
+          playSE('gameover');
+        } else {
+          // 新しいボールを生成
+          balls.push({
+            x: WIDTH / 2,
+            y: HEIGHT - 50,
+            r: 8,
+            speed: 5,
+            dx: 4,
+            dy: -4,
+            pierce: 0
+          });
+        }
+      }
     }
 
     // クリア判定
@@ -626,7 +742,12 @@ function spawnPowerUp(x, y) {
     { type: 'multi', color: '#ff0', name: 'マルチボール' },
     { type: 'pierce', color: '#f0f', name: '貫通弾' },
     { type: 'slow', color: '#0f0', name: 'スロー' },
-    { type: 'score2x', color: '#f00', name: 'スコア2倍' }
+    { type: 'score2x', color: '#f00', name: 'スコア2倍' },
+    { type: 'shield', color: '#00f', name: 'シールド' },
+    { type: 'laser', color: '#f80', name: 'レーザー' },
+    { type: 'bomb', color: '#800', name: '爆弾' },
+    { type: 'life', color: '#0f8', name: 'ライフ増加' },
+    { type: 'speedup', color: '#f0f', name: 'スピードアップ' }
   ];
   const p = types[Math.floor(Math.random() * types.length)];
   powerUps.push({ x, y, type: p.type, color: p.color, speed: 3, name: p.name });
@@ -638,7 +759,12 @@ function getPowerUpName(type) {
     'multi': 'マルチ',
     'pierce': '貫通',
     'slow': 'スロー',
-    'score2x': '2倍'
+    'score2x': '2倍',
+    'shield': 'シールド',
+    'laser': 'レーザー',
+    'bomb': '爆弾',
+    'life': 'ライフ',
+    'speedup': 'スピード'
   };
   return names[type] || type;
 }
@@ -651,7 +777,12 @@ function applyPowerUp(type) {
       'multi': 'マルチボール！',
       'pierce': '貫通弾！',
       'slow': 'スロー！',
-      'score2x': 'スコア2倍！'
+      'score2x': 'スコア2倍！',
+      'shield': 'シールド有効！',
+      'laser': 'レーザー有効！',
+      'bomb': '爆弾発動！',
+      'life': 'ライフ増加！',
+      'speedup': 'スピードアップ！'
     };
     
     effectMessages.push({
@@ -705,6 +836,41 @@ function applyPowerUp(type) {
       case 'score2x':
         score += 1000;
         addEffect('スコア2倍', '#f00', 12);
+        break;
+      case 'shield':
+        // シールド効果を有効化
+        paddle.shield = true;
+        paddle.shieldTimer = 300; // 5秒間（60FPS想定）
+        addEffect('シールド有効', '#00f', 10);
+        break;
+      case 'laser':
+        // レーザー効果を有効化
+        laserCooldown = 120; // 2秒間（60FPS想定）
+        addEffect('レーザー有効', '#f80', 8);
+        break;
+      case 'bomb':
+        // 爆弾効果：画面内のブロックを一掃
+        blocks.forEach(block => {
+          if (block.visible) {
+            score += 100;
+            createParticleExplosion(block.x + block.w/2, block.y + block.h/2, '#f00');
+          }
+        });
+        blocks = [];
+        addEffect('爆弾発動！', '#800', 15);
+        break;
+      case 'life':
+        // ライフ増加
+        lives = Math.min(lives + 1, maxLives);
+        addEffect('ライフ増加', '#0f8', 10);
+        break;
+      case 'speedup':
+        // ボールの速度を上げる
+        balls.forEach(ball => {
+          ball.dx *= 1.5;
+          ball.dy *= 1.5;
+        });
+        addEffect('スピードアップ', '#f0f', 8);
         break;
     }
   } catch (e) {
