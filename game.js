@@ -8,6 +8,7 @@ const HEIGHT = canvas.height;
 let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear'
 let score = 0;
 let stage = 1;
+let isPaused = false; // 一時停止状態
 
 // パドル
 const paddle = {
@@ -79,6 +80,23 @@ function playSE(name) {
   }
 }
 
+function togglePause(forceState) {
+  if (gameState !== 'playing' && !isPaused) return; // プレイ中以外は無視（既にポーズ中は解除可）
+  if (typeof forceState === 'boolean') {
+    isPaused = forceState;
+  } else {
+    isPaused = !isPaused;
+  }
+  const btn = document.getElementById('pauseBtn');
+  if (btn) btn.textContent = isPaused ? '再開' : '一時停止';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'p' || e.key === 'P') {
+    togglePause();
+  }
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') leftPressed = true;
   if (e.key === 'ArrowRight') rightPressed = true;
@@ -130,8 +148,14 @@ document.getElementById('restartBtn').onclick = () => {
   }
 };
 
+const pauseBtn = document.getElementById('pauseBtn');
+if (pauseBtn) {
+  pauseBtn.onclick = () => togglePause();
+}
+
 function startGame() {
   gameState = 'playing';
+  isPaused = false;
   resetGame();
 }
 
@@ -141,6 +165,7 @@ function resetGame(isNextStage = false) {
     score = 0;
   }
   gameState = 'playing';
+  isPaused = false;
   paddle.x = WIDTH / 2 - paddle.w / 2;
   paddle.w = 80; // パドルサイズリセット
   balls = [{
@@ -329,7 +354,7 @@ function drawParticles() {
 
 function drawBackground() {
   // 動的背景エフェクト
-  backgroundOffset += 0.5;
+  if (!isPaused) backgroundOffset += 0.5;
   
   // 星のような背景
   for (let i = 0; i < 50; i++) {
@@ -362,7 +387,8 @@ function drawTitle() {
   ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.fillStyle = '#888';
   ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 20);
-  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 40);
+  ctx.fillText('Pキーで一時停止/再開', WIDTH / 2, HEIGHT / 2 + 40);
+  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 60);
   // スタートボタン
   const buttonY = HEIGHT * 0.7;
   const buttonW = 200;
@@ -420,6 +446,15 @@ function draw() {
       drawPowerUps();
       drawEffects();
       drawParticles();
+      if (isPaused && gameState === 'playing') {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = '#fff';
+        ctx.font = '28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('一時停止中', WIDTH / 2, HEIGHT / 2);
+        ctx.textAlign = 'left';
+      }
       if (gameState === 'clear') {
         ctx.fillStyle = '#4f4';
         ctx.font = '32px sans-serif';
@@ -438,7 +473,7 @@ function draw() {
 
 function update() {
   try {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || isPaused) return;
 
     // パドル移動
     if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;

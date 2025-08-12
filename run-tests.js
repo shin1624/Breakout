@@ -70,6 +70,7 @@ class GameTestSuite {
       const htmlHasCanvas = htmlContent.includes('<canvas');
       const hasGameScript = htmlContent.includes('game.js');
       const htmlHasTitle = htmlContent.includes('新型ブロック崩し');
+      const htmlHasPauseBtn = htmlContent.includes('id="pauseBtn"');
       
       logTest('HTML: Canvas要素存在', htmlHasCanvas);
       if (htmlHasCanvas) this.passed++; else this.failed++; this.total++;
@@ -79,6 +80,9 @@ class GameTestSuite {
       
       logTest('HTML: タイトル設定', htmlHasTitle);
       if (htmlHasTitle) this.passed++; else this.failed++; this.total++;
+
+      logTest('HTML: 一時停止ボタン', htmlHasPauseBtn);
+      if (htmlHasPauseBtn) this.passed++; else this.failed++; this.total++;
 
       // CSSファイルテスト
       const cssContent = fs.readFileSync(path.join(__dirname, 'style.css'), 'utf8');
@@ -98,6 +102,9 @@ class GameTestSuite {
       const hasPowerUps = jsContent.includes('powerUps');
       const hasParticles = jsContent.includes('particles');
       const hasAnimations = jsContent.includes('animationFrame');
+      const hasPauseFlag = jsContent.includes('let isPaused');
+      const hasTogglePause = jsContent.includes('function togglePause');
+      const updateChecksPause = jsContent.includes("gameState !== 'playing' || isPaused");
       
       logTest('JS: Canvas取得処理', jsHasCanvas);
       if (jsHasCanvas) this.passed++; else this.failed++; this.total++;
@@ -113,6 +120,15 @@ class GameTestSuite {
       
       logTest('JS: アニメーション機能', hasAnimations);
       if (hasAnimations) this.passed++; else this.failed++; this.total++;
+
+      logTest('JS: 一時停止フラグ', hasPauseFlag);
+      if (hasPauseFlag) this.passed++; else this.failed++; this.total++;
+
+      logTest('JS: togglePause関数', hasTogglePause);
+      if (hasTogglePause) this.passed++; else this.failed++; this.total++;
+
+      logTest('JS: updateでポーズ判定', updateChecksPause);
+      if (updateChecksPause) this.passed++; else this.failed++; this.total++;
 
       // READMEファイルテスト
       const readmeContent = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
