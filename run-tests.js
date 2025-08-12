@@ -282,12 +282,12 @@ class GameTestSuite {
       logTest('Pキーイベント処理', hasPKeyHandling);
       if (hasPKeyHandling) this.passed++; else this.failed++; this.total++;
       
-      // スペースキーでのポーズ処理テスト
-      const hasSpaceKeyPause = jsContent.includes("gameState === 'playing'") && 
-                               jsContent.includes("e.code === 'Space'") &&
-                               jsContent.includes("gameState = 'paused'");
-      logTest('スペースキーポーズ処理', hasSpaceKeyPause);
-      if (hasSpaceKeyPause) this.passed++; else this.failed++; this.total++;
+      // ESCキーでのポーズ処理テスト
+      const hasEscapeKeyPause = jsContent.includes("gameState === 'playing'") && 
+                                jsContent.includes("e.key === 'Escape'") &&
+                                jsContent.includes("gameState = 'paused'");
+      logTest('ESCキーポーズ処理', hasEscapeKeyPause);
+      if (hasEscapeKeyPause) this.passed++; else this.failed++; this.total++;
       
       // ポーズからの復帰処理テスト
       const hasPauseResume = jsContent.includes("gameState === 'paused'") &&
@@ -302,17 +302,17 @@ class GameTestSuite {
       if (hasPauseUI) this.passed++; else this.failed++; this.total++;
       
       // update関数でのポーズ処理テスト
-      const hasUpdatePauseCheck = jsContent.includes("if (gameState !== 'playing') return");
+      const hasUpdatePauseCheck = jsContent.includes("if (gameState !== 'playing' && gameState !== 'paused') return");
       logTest('update関数ポーズチェック', hasUpdatePauseCheck);
       if (hasUpdatePauseCheck) this.passed++; else this.failed++; this.total++;
       
       // ポーズ状態での操作説明表示テスト
-      const hasPauseInstructions = jsContent.includes('Pキーまたはスペースキーで再開');
+      const hasPauseInstructions = jsContent.includes('PキーまたはESCキーで再開');
       logTest('ポーズ時操作説明', hasPauseInstructions);
       if (hasPauseInstructions) this.passed++; else this.failed++; this.total++;
       
       // タイトル画面でのポーズ説明テスト
-      const hasTitlePauseInfo = jsContent.includes('Pキーまたはスペースキーでポーズ');
+      const hasTitlePauseInfo = jsContent.includes('PキーまたはESCキーでポーズ');
       logTest('タイトル画面ポーズ説明', hasTitlePauseInfo);
       if (hasTitlePauseInfo) this.passed++; else this.failed++; this.total++;
 
