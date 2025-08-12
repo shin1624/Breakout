@@ -5,7 +5,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
 // ゲーム状態
-let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear'
+let gameState = 'title'; // 'title', 'playing', 'paused', 'gameover', 'clear'
 let score = 0;
 let stage = 1;
 
@@ -88,6 +88,12 @@ document.addEventListener('keydown', (e) => {
   if (gameState === 'clear' && e.code === 'Space') {
     stage++;
     resetGame(true);
+    gameState = 'playing';
+  }
+  // ポーズ機能（PキーまたはESCキー）
+  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'playing') {
+    gameState = 'paused';
+  } else if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'paused') {
     gameState = 'playing';
   }
 });
@@ -430,6 +436,19 @@ function draw() {
         ctx.fillText('スペースキーで次のステージへ', WIDTH / 2, HEIGHT / 2 + 40);
         ctx.textAlign = 'left';
       }
+      if (gameState === 'paused') {
+        // ポーズ中のオーバーレイ表示
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = '#fff';
+        ctx.font = '48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAUSED', WIDTH / 2, HEIGHT / 2 - 30);
+        ctx.font = '20px sans-serif';
+        ctx.fillStyle = '#ccc';
+        ctx.fillText('PキーまたはESCキーで再開', WIDTH / 2, HEIGHT / 2 + 20);
+        ctx.textAlign = 'left';
+      }
     }
   } catch (e) {
     console.error('draw error:', e);
@@ -438,7 +457,10 @@ function draw() {
 
 function update() {
   try {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' && gameState !== 'paused') return;
+    
+    // ポーズ中は更新処理をスキップ
+    if (gameState === 'paused') return;
 
     // パドル移動
     if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
