@@ -5,9 +5,19 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
 // ゲーム状態
-let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear'
+let gameState = 'title'; // 'title', 'playing', 'gameover', 'clear', 'boss'
 let score = 0;
 let stage = 1;
+
+// ボスシステム
+let boss = null;
+let isBossStage = false;
+let bossHP = 0;
+let bossMaxHP = 0;
+let bossPattern = 0;
+let bossAttackTimer = 0;
+let bossWarning = false;
+let bossWarningTimer = 0;
 
 // パドル
 const paddle = {
@@ -158,6 +168,14 @@ function resetGame(isNextStage = false) {
   effectMessages = [];
   particles = [];
   document.getElementById('stage').textContent = `ステージ: ${stage}`;
+  isBossStage = false;
+  boss = null;
+  bossHP = 0;
+  bossMaxHP = 0;
+  bossPattern = 0;
+  bossAttackTimer = 0;
+  bossWarning = false;
+  bossWarningTimer = 0;
 }
 
 function generateStage(stageNum = 1) {
@@ -178,6 +196,90 @@ function generateStage(stageNum = 1) {
         });
       }
     }
+  }
+  
+  // ボスステージ判定（5の倍数のステージでボス戦）
+  if (stageNum % 5 === 0) {
+    isBossStage = true;
+    bossWarning = true;
+    bossWarningTimer = 180; // 3秒間の警告
+  } else {
+    isBossStage = false;
+    boss = null;
+  }
+}
+
+function generateBoss(stageNum) {
+  const bossTypes = [
+    {
+      name: 'レーザーガーディアン',
+      width: 120,
+      height: 60,
+      hp: 20 + stageNum * 5,
+      color: '#ff4444',
+      pattern: 'laser'
+    },
+    {
+      name: 'ミサイルマスター',
+      width: 100,
+      height: 80,
+      hp: 25 + stageNum * 6,
+      color: '#ff8800',
+      pattern: 'missile'
+    },
+    {
+      name: 'シールドブレーカー',
+      width: 140,
+      height: 50,
+      hp: 30 + stageNum * 7,
+      color: '#8800ff',
+      pattern: 'shield'
+    }
+  ];
+  
+  const bossType = bossTypes[(stageNum / 5 - 1) % bossTypes.length];
+  
+  boss = {
+    x: WIDTH / 2 - bossType.width / 2,
+    y: 80,
+    w: bossType.width,
+    h: bossType.height,
+    hp: bossType.hp,
+    maxHP: bossType.hp,
+    name: bossType.name,
+    color: bossType.color,
+    pattern: bossType.pattern,
+    dx: 2,
+    attackCooldown: 0,
+    lastAttack: 0,
+    phase: 1
+  };
+  
+  bossHP = boss.hp;
+  bossMaxHP = boss.maxHP;
+  bossPattern = 0;
+  bossAttackTimer = 0;
+  
+  // ボス戦開始の演出
+  createBossIntroEffect();
+}
+
+function createBossIntroEffect() {
+  // ボス登場時のパーティクルエフェクト
+  for (let i = 0; i < 50; i++) {
+    const angle = (Math.PI * 2 * i) / 50;
+    const speed = 3 + Math.random() * 4;
+    
+    particles.push({
+      x: WIDTH / 2,
+      y: HEIGHT / 2,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 4 + Math.random() * 4,
+      color: '#ff0000',
+      alpha: 1.0,
+      life: 60 + Math.random() * 60
+    });
   }
 }
 
@@ -261,6 +363,162 @@ function drawBlocks() {
   });
 }
 
+function drawBoss() {
+  if (!boss) return;
+  
+  // 無敵状態の場合は点滅エフェクト
+  if (boss.invincible && Math.floor(animationFrame / 5) % 2 === 0) {
+    return; // 点滅中は描画しない
+  }
+  
+  // ボスの影
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(boss.x + 4, boss.y + 4, boss.w, boss.h);
+  
+  // ボスの本体
+  const gradient = ctx.createLinearGradient(boss.x, boss.y, boss.x, boss.y + boss.h);
+  gradient.addColorStop(0, boss.color);
+  gradient.addColorStop(1, darkenColor(boss.color, 0.3));
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+  
+  // ボスの縁取り
+  ctx.strokeStyle = lightenColor(boss.color, 0.5);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(boss.x, boss.y, boss.w, boss.h);
+  
+  // ボスの名前
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(boss.name, boss.x + boss.w / 2, boss.y - 10);
+  ctx.textAlign = 'left';
+  
+  // ボスのHPバー
+  drawBossHPBar();
+  
+  // ボスの攻撃エフェクト
+  if (boss.pattern === 'laser') {
+    drawLaserEffect();
+  } else if (boss.pattern === 'missile') {
+    drawMissileEffect();
+  } else if (boss.pattern === 'shield') {
+    drawShieldEffect();
+  }
+}
+
+function drawBossHPBar() {
+  if (!boss) return;
+  
+  const barWidth = 200;
+  const barHeight = 20;
+  const barX = WIDTH / 2 - barWidth / 2;
+  const barY = 20;
+  
+  // HPバーの背景
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(barX, barY, barWidth, barHeight);
+  
+  // HPバーの枠
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(barX, barY, barWidth, barHeight);
+  
+  // HPバーの本体
+  const hpRatio = boss.hp / boss.maxHP;
+  const hpColor = hpRatio > 0.6 ? '#00ff00' : hpRatio > 0.3 ? '#ffff00' : '#ff0000';
+  
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(barX + 2, barY + 2, (barWidth - 4) * hpRatio, barHeight - 4);
+  
+  // HP数値
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${boss.hp}/${boss.maxHP}`, barX + barWidth / 2, barY + barHeight / 2 + 4);
+  ctx.textAlign = 'left';
+}
+
+function drawLaserEffect() {
+  if (!boss || boss.attackCooldown <= 0) return;
+  
+  // レーザー充填エフェクト
+  const chargeProgress = 1 - (boss.attackCooldown / 120);
+  ctx.strokeStyle = '#ff0000';
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.5 + Math.sin(animationFrame * 0.5) * 0.3;
+  
+  ctx.beginPath();
+  ctx.moveTo(boss.x + boss.w / 2, boss.y + boss.h);
+  ctx.lineTo(boss.x + boss.w / 2, HEIGHT);
+  ctx.stroke();
+  
+  // 充填完了時の警告
+  if (chargeProgress > 0.8) {
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = 5;
+    ctx.globalAlpha = 0.8 + Math.sin(animationFrame * 0.2) * 0.2;
+    ctx.stroke();
+  }
+  
+  ctx.globalAlpha = 1.0;
+}
+
+function drawMissileEffect() {
+  if (!boss || boss.attackCooldown <= 0) return;
+  
+  // ミサイル発射準備エフェクト
+  const chargeProgress = 1 - (boss.attackCooldown / 90);
+  ctx.fillStyle = '#ff8800';
+  ctx.globalAlpha = 0.6 + Math.sin(animationFrame * 0.3) * 0.4;
+  
+  // ミサイル発射口
+  ctx.beginPath();
+  ctx.arc(boss.x + boss.w / 2, boss.y + boss.h, 8, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.globalAlpha = 1.0;
+}
+
+function drawShieldEffect() {
+  if (!boss) return;
+  
+  // シールドエフェクト
+  ctx.strokeStyle = '#8800ff';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.3 + Math.sin(animationFrame * 0.2) * 0.2;
+  
+  ctx.beginPath();
+  ctx.arc(boss.x + boss.w / 2, boss.y + boss.h / 2, boss.w * 0.8, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  ctx.globalAlpha = 1.0;
+}
+
+// 色の明度調整用ヘルパー関数
+function lightenColor(color, amount) {
+  const num = parseInt(color.replace('#', ''), 16);
+  const amt = Math.round(2.55 * amount * 100);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+}
+
+function darkenColor(color, amount) {
+  const num = parseInt(color.replace('#', ''), 16);
+  const amt = Math.round(2.55 * amount * 100);
+  const R = (num >> 16) - amt;
+  const G = (num >> 8 & 0x00FF) - amt;
+  const B = (num & 0x0000FF) - amt;
+  return '#' + (0x1000000 + (R > 255 ? 255 : R < 0 ? 0 : R) * 0x10000 +
+    (G > 255 ? 255 : G < 0 ? 0 : G) * 0x100 +
+    (B > 255 ? 255 : B < 0 ? 0 : B)).toString(16).slice(1);
+}
+
 function drawPowerUps() {
   powerUps.forEach(pu => {
     const rotation = animationFrame * 0.1;
@@ -313,6 +571,35 @@ function drawEffects() {
     ctx.fillText(msg.text, msg.x, msg.y);
     ctx.globalAlpha = 1.0;
   });
+  
+  // ボス戦警告表示
+  if (bossWarning && bossWarningTimer > 0) {
+    drawBossWarning();
+  }
+}
+
+function drawBossWarning() {
+  const warningText = '⚠️ ボス戦開始！ ⚠️';
+  const fontSize = 32;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  
+  // 警告テキストの影
+  ctx.fillStyle = '#000';
+  ctx.fillText(warningText, WIDTH / 2 + 2, HEIGHT / 2 + 2);
+  
+  // 警告テキスト
+  ctx.fillStyle = '#ff0000';
+  ctx.fillText(warningText, WIDTH / 2, HEIGHT / 2);
+  
+  // 点滅エフェクト
+  if (Math.floor(bossWarningTimer / 10) % 2 === 0) {
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3;
+    ctx.strokeText(warningText, WIDTH / 2, HEIGHT / 2);
+  }
+  
+  ctx.textAlign = 'left';
 }
 
 function drawParticles() {
@@ -417,6 +704,7 @@ function draw() {
       drawPaddle();
       drawBall();
       drawBlocks();
+      drawBoss(); // ボスの描画を追加
       drawPowerUps();
       drawEffects();
       drawParticles();
@@ -439,6 +727,17 @@ function draw() {
 function update() {
   try {
     if (gameState !== 'playing') return;
+
+    // ボス戦警告タイマー更新
+    if (bossWarning && bossWarningTimer > 0) {
+      bossWarningTimer--;
+      if (bossWarningTimer === 0) {
+        bossWarning = false;
+        if (isBossStage && !boss) {
+          generateBoss(stage);
+        }
+      }
+    }
 
     // パドル移動
     if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
@@ -474,6 +773,11 @@ function update() {
       }
     });
 
+    // ボス戦の更新
+    if (boss && isBossStage) {
+      updateBoss();
+    }
+
     // ブロック衝突
     for (let i = 0; i < blocks.length; i++) {
       let b = blocks[i];
@@ -503,90 +807,337 @@ function update() {
       if (blockHit) {
         b.hp--;
         if (b.hp <= 0) {
-          // パーティクルエフェクト生成
-          createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, b.type === 'special' ? '#f80' : '#0f0');
-          
-          // パワーアップドロップ
-          if (Math.random() < 0.2) {
-            spawnPowerUp(b.x + b.w / 2, b.y + b.h / 2);
-          }
           blocks.splice(i, 1);
           score += 100;
-          i--;
+          createParticleExplosion(b.x + b.w / 2, b.y + b.h / 2, '#4f8cff');
           playSE('break');
+          
+          // パワーアップの確率
+          if (Math.random() < 0.1) {
+            createPowerUp(b.x + b.w / 2, b.y + b.h / 2);
+          }
         }
+        i--;
       }
     }
 
-    // パワーアップ落下
+    // ボスとの衝突判定
+    if (boss && isBossStage) {
+      balls.forEach(ball => {
+        if (
+          ball.x + ball.r > boss.x &&
+          ball.x - ball.r < boss.x + boss.w &&
+          ball.y + ball.r > boss.y &&
+          ball.y - ball.r < boss.y + boss.h
+        ) {
+          // 無敵状態の場合はダメージを与えない
+          if (!boss.invincible) {
+            // ボスにダメージ
+            boss.hp--;
+            bossHP = boss.hp;
+            
+            // ボスダメージエフェクト
+            createBossDamageEffect(ball.x, ball.y);
+            
+            // ボス撃破判定
+            if (boss.hp <= 0) {
+              bossDefeated();
+            }
+          }
+          
+          if (ball.pierce > 0) {
+            ball.pierce--;
+            if (ball.pierce === 0) {
+              ball.dy *= -1;
+            }
+          } else {
+            ball.dy *= -1;
+          }
+          
+          playSE('hit');
+        }
+      });
+    }
+
+    // パワーアップの更新
     powerUps.forEach((pu, idx) => {
       pu.y += pu.speed;
-      // パドル取得
+      if (pu.y > HEIGHT) {
+        powerUps.splice(idx, 1);
+      }
+      
+      // パドルとの衝突
       if (
         pu.y + 10 > paddle.y &&
         pu.x > paddle.x &&
         pu.x < paddle.x + paddle.w
       ) {
         applyPowerUp(pu.type);
+        powerUps.splice(idx, 1);
         playSE('powerup');
-        powerUps.splice(idx, 1);
-      } else if (pu.y > HEIGHT) {
-        powerUps.splice(idx, 1);
       }
     });
-    
+
     // エフェクトの更新
     activeEffects.forEach((effect, idx) => {
-      effect.duration -= 1/60; // 60FPS想定
+      effect.duration--;
       if (effect.duration <= 0) {
         removeEffect(effect.type);
         activeEffects.splice(idx, 1);
       }
     });
-    
+
     // エフェクトメッセージの更新
     effectMessages.forEach((msg, idx) => {
-      msg.y -= 1;
       msg.alpha -= 0.02;
+      msg.y -= 0.5;
       if (msg.alpha <= 0) {
         effectMessages.splice(idx, 1);
       }
     });
-    
+
     // パーティクルの更新
     particles.forEach((particle, idx) => {
       particle.x += particle.vx;
       particle.y += particle.vy;
-      particle.vy += 0.1; // 重力
       particle.alpha -= 0.02;
-      particle.size -= 0.1;
+      if (particle.life !== undefined) {
+        particle.life--;
+        if (particle.life <= 0) {
+          particle.alpha -= 0.05;
+        }
+      }
       
-      if (particle.alpha <= 0 || particle.size <= 0) {
+      // ミサイルタイプのパーティクルの衝突判定
+      if (particle.type === 'missile') {
+        // パドルとの衝突
+        if (
+          particle.y + particle.size > paddle.y &&
+          particle.x > paddle.x &&
+          particle.x < paddle.x + paddle.w
+        ) {
+          // パドルにダメージ（ボールを1つ減らす）
+          if (balls.length > 1) {
+            balls.pop();
+            createParticleExplosion(particle.x, particle.y, '#ff8800');
+          }
+          particles.splice(idx, 1);
+          continue;
+        }
+      }
+      
+      if (particle.alpha <= 0) {
         particles.splice(idx, 1);
       }
     });
-    
-    // アニメーションフレーム更新
-    animationFrame++;
 
-    // ボール落下チェック
-    balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
-    
-    // すべてのボールが落下したらゲームオーバー
+    // ボールが画面外に出た場合の処理
+    balls = balls.filter(ball => ball.y < HEIGHT + 50);
+
+    // ゲームオーバー判定
     if (balls.length === 0) {
       gameState = 'gameover';
       playSE('gameover');
     }
 
     // クリア判定
-    if (blocks.length === 0) {
+    if (blocks.length === 0 && !isBossStage) {
       gameState = 'clear';
       playSE('clear');
     }
 
-    document.getElementById('score').textContent = `スコア: ${score}`;
+    // アニメーションフレーム更新
+    animationFrame++;
   } catch (e) {
     console.error('update error:', e);
+  }
+}
+
+function updateBoss() {
+  if (!boss) return;
+  
+  // 無敵状態の処理
+  if (boss.invincible) {
+    boss.invincibleTimer--;
+    if (boss.invincibleTimer <= 0) {
+      boss.invincible = false;
+    }
+  }
+  
+  // ボスの移動
+  boss.x += boss.dx;
+  if (boss.x <= 0 || boss.x + boss.w >= WIDTH) {
+    boss.dx *= -1;
+  }
+  
+  // ボスの攻撃パターン
+  boss.attackCooldown--;
+  if (boss.attackCooldown <= 0) {
+    executeBossAttack();
+  }
+  
+  // フェーズ変更（HPが50%以下でフェーズ2）
+  if (boss.hp <= boss.maxHP * 0.5 && boss.phase === 1) {
+    boss.phase = 2;
+    boss.dx *= 1.5; // 移動速度アップ
+    boss.attackCooldown = 30; // 攻撃間隔短縮
+  }
+}
+
+function executeBossAttack() {
+  if (!boss) return;
+  
+  switch (boss.pattern) {
+    case 'laser':
+      // レーザー攻撃
+      boss.attackCooldown = 120; // 2秒間隔
+      createLaserAttack();
+      break;
+      
+    case 'missile':
+      // ミサイル攻撃
+      boss.attackCooldown = 90; // 1.5秒間隔
+      createMissileAttack();
+      break;
+      
+    case 'shield':
+      // シールド攻撃
+      boss.attackCooldown = 150; // 2.5秒間隔
+      createShieldAttack();
+      break;
+  }
+}
+
+function createLaserAttack() {
+  // レーザー攻撃の実装
+  const laserWidth = 8;
+  const laserX = boss.x + boss.w / 2 - laserWidth / 2;
+  
+  // レーザーエフェクト
+  for (let i = 0; i < 20; i++) {
+    particles.push({
+      x: laserX + Math.random() * laserWidth,
+      y: boss.y + boss.h,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 3 + Math.random() * 2,
+      size: 2 + Math.random() * 3,
+      color: '#ff0000',
+      alpha: 1.0,
+      life: 30
+    });
+  }
+  
+  // パドルとの衝突判定
+  if (laserX < paddle.x + paddle.w && laserX + laserWidth > paddle.x) {
+    // パドルにダメージ（ボールを1つ減らす）
+    if (balls.length > 1) {
+      balls.pop();
+      createParticleExplosion(paddle.x + paddle.w / 2, paddle.y, '#ff0000');
+    }
+  }
+}
+
+function createMissileAttack() {
+  // ミサイル攻撃の実装
+  const missileCount = boss.phase === 2 ? 3 : 2;
+  
+  for (let i = 0; i < missileCount; i++) {
+    const missileX = boss.x + (boss.w / (missileCount + 1)) * (i + 1);
+    
+    particles.push({
+      x: missileX,
+      y: boss.y + boss.h,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 2 + Math.random() * 2,
+      size: 6,
+      color: '#ff8800',
+      alpha: 1.0,
+      life: 60,
+      type: 'missile'
+    });
+  }
+}
+
+function createShieldAttack() {
+  // シールド攻撃の実装
+  // ボスが一時的に無敵になる
+  boss.invincible = true;
+  boss.invincibleTimer = 60; // 1秒間無敵
+  
+  // シールドエフェクト
+  for (let i = 0; i < 30; i++) {
+    const angle = (Math.PI * 2 * i) / 30;
+    const radius = boss.w * 0.6;
+    
+    particles.push({
+      x: boss.x + boss.w / 2 + Math.cos(angle) * radius,
+      y: boss.y + boss.h / 2 + Math.sin(angle) * radius,
+      vx: Math.cos(angle) * 2,
+      vy: Math.sin(angle) * 2,
+      size: 3 + Math.random() * 2,
+      color: '#8800ff',
+      alpha: 0.8,
+      life: 45
+    });
+  }
+}
+
+function bossDefeated() {
+  // ボス撃破時の処理
+  createBossDefeatEffect();
+  score += 5000; // ボス撃破ボーナス
+  isBossStage = false;
+  boss = null;
+  
+  // ボス撃破メッセージ
+  effectMessages.push({
+    text: 'ボス撃破！',
+    x: WIDTH / 2 - 50,
+    y: HEIGHT / 2,
+    color: '#ff0000',
+    alpha: 1.0
+  });
+  
+  // ステージクリア
+  gameState = 'clear';
+  playSE('clear');
+}
+
+function createBossDamageEffect(x, y) {
+  // ボスダメージ時のエフェクト
+  for (let i = 0; i < 15; i++) {
+    const angle = (Math.PI * 2 * i) / 15;
+    const speed = 2 + Math.random() * 3;
+    
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 4 + Math.random() * 3,
+      color: '#ff0000',
+      alpha: 1.0,
+      life: 30
+    });
+  }
+}
+
+function createBossDefeatEffect() {
+  // ボス撃破時の豪華なエフェクト
+  for (let i = 0; i < 100; i++) {
+    const angle = (Math.PI * 2 * i) / 100;
+    const speed = 3 + Math.random() * 5;
+    
+    particles.push({
+      x: boss.x + boss.w / 2,
+      y: boss.y + boss.h / 2,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 5 + Math.random() * 5,
+      color: ['#ff0000', '#ff8800', '#ffff00', '#00ff00', '#0088ff', '#8800ff'][Math.floor(Math.random() * 6)],
+      alpha: 1.0,
+      life: 90 + Math.random() * 60
+    });
   }
 }
 
