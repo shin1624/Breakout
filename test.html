@@ -71,6 +71,12 @@
   </div>
 
   <div class="test-section">
+    <h2>新パワーアップテスト</h2>
+    <button onclick="testNewPowerUps()">新パワーアップをテスト</button>
+    <div id="new-powerup-results"></div>
+  </div>
+
+  <div class="test-section">
     <h2>アニメーションテスト</h2>
     <button onclick="testAnimations()">アニメーションをテスト</button>
     <div id="animation-results"></div>
@@ -199,6 +205,17 @@
           addResult('powerup-results', '✅ パワーアップ適用成功', 'pass');
         } else {
           addResult('powerup-results', '❌ パワーアップ適用失敗', 'fail');
+        }
+        
+        // 新パワーアップの種類チェック
+        const powerUpTypes = ['expand', 'multi', 'pierce', 'slow', 'score2x', 'shield', 'laser', 'bomb', 'life', 'speedup'];
+        const generatedTypes = powerUps.map(pu => pu.type);
+        const hasAllTypes = powerUpTypes.every(type => generatedTypes.includes(type));
+        
+        if (hasAllTypes) {
+          addResult('powerup-results', '✅ 全パワーアップ種類が利用可能', 'pass');
+        } else {
+          addResult('powerup-results', '❌ 一部のパワーアップ種類が不足', 'fail');
         }
 
       } catch (error) {
@@ -365,6 +382,113 @@
 
       } catch (error) {
         addResult('performance-results', `❌ エラー: ${error.message}`, 'fail');
+      }
+    }
+
+    function testNewPowerUps() {
+      clearResults('new-powerup-results');
+      
+      try {
+        addResult('new-powerup-results', '🔍 新パワーアップシステムのテストを開始...', 'info');
+        
+        // 新しいパワーアップ変数の存在確認
+        if (typeof lives === 'number') {
+          addResult('new-powerup-results', '✅ ライフシステム存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ ライフシステム不存在', 'fail');
+        }
+        
+        if (typeof maxLives === 'number') {
+          addResult('new-powerup-results', '✅ 最大ライフ変数存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ 最大ライフ変数不存在', 'fail');
+        }
+        
+        if (Array.isArray(lasers)) {
+          addResult('new-powerup-results', '✅ レーザー配列存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ レーザー配列不存在', 'fail');
+        }
+        
+        if (typeof laserCooldown === 'number') {
+          addResult('new-powerup-results', '✅ レーザークールダウン存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ レーザークールダウン不存在', 'fail');
+        }
+        
+        // パドルのシールド機能確認
+        if (paddle.shield !== undefined) {
+          addResult('new-powerup-results', '✅ パドルシールド機能存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ パドルシールド機能不存在', 'fail');
+        }
+        
+        if (paddle.shieldTimer !== undefined) {
+          addResult('new-powerup-results', '✅ シールドタイマー存在', 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ シールドタイマー不存在', 'fail');
+        }
+        
+        // 新しいパワーアップの生成テスト
+        const initialPowerUpCount = powerUps.length;
+        spawnPowerUp(100, 100);
+        
+        // 新しいパワーアップが生成されたかチェック
+        const newPowerUps = powerUps.filter(pu => 
+          ['shield', 'laser', 'bomb', 'life', 'speedup'].includes(pu.type)
+        );
+        
+        if (newPowerUps.length > 0) {
+          addResult('new-powerup-results', `✅ 新パワーアップ生成成功 (${newPowerUps.length}個)`, 'pass');
+        } else {
+          addResult('new-powerup-results', '❌ 新パワーアップ生成失敗', 'fail');
+        }
+        
+        // 各新パワーアップの適用テスト
+        const testPowerUps = ['shield', 'laser', 'bomb', 'life', 'speedup'];
+        testPowerUps.forEach(type => {
+          try {
+            const initialLives = lives;
+            const initialLaserCooldown = laserCooldown;
+            const initialShield = paddle.shield;
+            
+            applyPowerUp(type);
+            
+            // 効果が適用されたかチェック
+            let effectApplied = false;
+            switch (type) {
+              case 'shield':
+                effectApplied = paddle.shield === true;
+                break;
+              case 'laser':
+                effectApplied = laserCooldown > 0;
+                break;
+              case 'bomb':
+                effectApplied = blocks.length === 0;
+                break;
+              case 'life':
+                effectApplied = lives > initialLives;
+                break;
+              case 'speedup':
+                effectApplied = balls.some(ball => ball.dx > 4 || ball.dy > 4);
+                break;
+            }
+            
+            if (effectApplied) {
+              addResult('new-powerup-results', `✅ ${type}パワーアップ適用成功`, 'pass');
+            } else {
+              addResult('new-powerup-results', `❌ ${type}パワーアップ適用失敗`, 'fail');
+            }
+            
+          } catch (error) {
+            addResult('new-powerup-results', `❌ ${type}パワーアップエラー: ${error.message}`, 'fail');
+          }
+        });
+        
+        addResult('new-powerup-results', '🎉 新パワーアップテスト完了！', 'info');
+        
+      } catch (error) {
+        addResult('new-powerup-results', `❌ エラー: ${error.message}`, 'fail');
       }
     }
 
