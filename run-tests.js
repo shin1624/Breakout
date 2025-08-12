@@ -265,6 +265,64 @@ class GameTestSuite {
     }
   }
 
+  // ポーズ機能テスト
+  testPauseFunctionality() {
+    log('\n⏸️ ポーズ機能テスト', 'cyan');
+    
+    try {
+      const jsContent = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8');
+      
+      // ポーズ状態がゲームステートに含まれているかテスト
+      const hasPausedState = jsContent.includes("'paused'");
+      logTest('ポーズ状態定義', hasPausedState);
+      if (hasPausedState) this.passed++; else this.failed++; this.total++;
+      
+      // Pキーのイベントハンドリングテスト
+      const hasPKeyHandling = jsContent.includes("e.key === 'p'") || jsContent.includes("e.key === 'P'");
+      logTest('Pキーイベント処理', hasPKeyHandling);
+      if (hasPKeyHandling) this.passed++; else this.failed++; this.total++;
+      
+      // スペースキーでのポーズ処理テスト
+      const hasSpaceKeyPause = jsContent.includes("gameState === 'playing'") && 
+                               jsContent.includes("e.code === 'Space'") &&
+                               jsContent.includes("gameState = 'paused'");
+      logTest('スペースキーポーズ処理', hasSpaceKeyPause);
+      if (hasSpaceKeyPause) this.passed++; else this.failed++; this.total++;
+      
+      // ポーズからの復帰処理テスト
+      const hasPauseResume = jsContent.includes("gameState === 'paused'") &&
+                             jsContent.includes("gameState = 'playing'");
+      logTest('ポーズ復帰処理', hasPauseResume);
+      if (hasPauseResume) this.passed++; else this.failed++; this.total++;
+      
+      // ポーズ画面表示テスト
+      const hasPauseUI = jsContent.includes("'ポーズ'") &&
+                         jsContent.includes("ポーズ画面のオーバーレイ");
+      logTest('ポーズ画面UI', hasPauseUI);
+      if (hasPauseUI) this.passed++; else this.failed++; this.total++;
+      
+      // update関数でのポーズ処理テスト
+      const hasUpdatePauseCheck = jsContent.includes("if (gameState !== 'playing') return");
+      logTest('update関数ポーズチェック', hasUpdatePauseCheck);
+      if (hasUpdatePauseCheck) this.passed++; else this.failed++; this.total++;
+      
+      // ポーズ状態での操作説明表示テスト
+      const hasPauseInstructions = jsContent.includes('Pキーまたはスペースキーで再開');
+      logTest('ポーズ時操作説明', hasPauseInstructions);
+      if (hasPauseInstructions) this.passed++; else this.failed++; this.total++;
+      
+      // タイトル画面でのポーズ説明テスト
+      const hasTitlePauseInfo = jsContent.includes('Pキーまたはスペースキーでポーズ');
+      logTest('タイトル画面ポーズ説明', hasTitlePauseInfo);
+      if (hasTitlePauseInfo) this.passed++; else this.failed++; this.total++;
+
+    } catch (error) {
+      logTest('ポーズ機能チェック', false, error.message);
+      this.failed++;
+      this.total++;
+    }
+  }
+
   // 結果表示
   showResults() {
     log('\n📊 テスト結果サマリー', 'bright');
@@ -294,6 +352,7 @@ class GameTestSuite {
     this.testFileExists();
     this.testFileContents();
     this.testCodeQuality();
+    this.testPauseFunctionality();
     this.testPerformance();
     this.testSecurity();
     
