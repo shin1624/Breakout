@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポモドーロタイマー テスト</title>
+    <link rel="stylesheet" href="pomodoro.css">
+    <style>
+        /* テスト用の追加スタイル */
+        .test-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 300px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            border-top: 3px solid #007acc;
+            display: none;
+        }
+        
+        .test-console.show {
+            display: block;
+        }
+        
+        .test-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        
+        .test-toggle:hover {
+            background-color: #005a9e;
+        }
+        
+        body.test-mode {
+            padding-bottom: 320px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ポモドーロタイマー</h1>
+        
+        <div class="timer-display">
+            <div id="time-display">25:00</div>
+            <div id="session-type">作業時間</div>
+        </div>
+        
+        <div class="controls">
+            <button id="start-btn" class="btn btn-primary">開始</button>
+            <button id="pause-btn" class="btn btn-secondary" disabled>一時停止</button>
+            <button id="reset-btn" class="btn btn-danger">リセット</button>
+        </div>
+        
+        <div class="settings">
+            <div class="setting-group">
+                <label for="work-duration">作業時間 (分):</label>
+                <input type="number" id="work-duration" min="1" max="60" value="25">
+            </div>
+            <div class="setting-group">
+                <label for="break-duration">休憩時間 (分):</label>
+                <input type="number" id="break-duration" min="1" max="30" value="5">
+            </div>
+            <div class="setting-group">
+                <label for="long-break-duration">長い休憩時間 (分):</label>
+                <input type="number" id="long-break-duration" min="1" max="60" value="15">
+            </div>
+        </div>
+        
+        <div class="session-info">
+            <p>セッション: <span id="session-count">0</span> / 4</p>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="notification-sound" preload="auto">
+        <source src="notification.mp3" type="audio/mpeg">
+        <source src="notification.ogg" type="audio/ogg">
+    </audio>
+    
+    <button class="test-toggle" onclick="toggleTestConsole()">テストコンソール</button>
+    
+    <div id="test-console" class="test-console">
+        <pre id="test-output"></pre>
+    </div>
+    
+    <script src="pomodoro.js"></script>
+    <script src="pomodoro-test.js"></script>
+    <script>
+        // テストコンソールの表示切り替え
+        function toggleTestConsole() {
+            const console = document.getElementById('test-console');
+            const body = document.body;
+            
+            console.classList.toggle('show');
+            body.classList.toggle('test-mode');
+            
+            if (console.classList.contains('show') && !window.testRun) {
+                runTests();
+                window.testRun = true;
+            }
+        }
+        
+        // コンソール出力をキャプチャ
+        const testOutput = document.getElementById('test-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            testOutput.textContent += args.join(' ') + '\n';
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            testOutput.textContent += '❌ ' + args.join(' ') + '\n';
+        };
+        
+        // テストの実行
+        function runTests() {
+            testOutput.textContent = '';
+            const test = new PomodoroTimerTest();
+            test.runAllTests();
+        }
+    </script>
+</body>
+</html>

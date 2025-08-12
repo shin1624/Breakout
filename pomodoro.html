@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポモドーロタイマー</title>
+    <link rel="stylesheet" href="pomodoro.css">
+</head>
+<body>
+    <div class="container">
+        <h1>ポモドーロタイマー</h1>
+        
+        <div class="timer-display">
+            <div id="time-display">25:00</div>
+            <div id="session-type">作業時間</div>
+        </div>
+        
+        <div class="controls">
+            <button id="start-btn" class="btn btn-primary">開始</button>
+            <button id="pause-btn" class="btn btn-secondary" disabled>一時停止</button>
+            <button id="reset-btn" class="btn btn-danger">リセット</button>
+        </div>
+        
+        <div class="settings">
+            <div class="setting-group">
+                <label for="work-duration">作業時間 (分):</label>
+                <input type="number" id="work-duration" min="1" max="60" value="25">
+            </div>
+            <div class="setting-group">
+                <label for="break-duration">休憩時間 (分):</label>
+                <input type="number" id="break-duration" min="1" max="30" value="5">
+            </div>
+            <div class="setting-group">
+                <label for="long-break-duration">長い休憩時間 (分):</label>
+                <input type="number" id="long-break-duration" min="1" max="60" value="15">
+            </div>
+        </div>
+        
+        <div class="session-info">
+            <p>セッション: <span id="session-count">0</span> / 4</p>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="notification-sound" preload="auto">
+        <source src="notification.mp3" type="audio/mpeg">
+        <source src="notification.ogg" type="audio/ogg">
+    </audio>
+    
+    <script src="pomodoro.js"></script>
+</body>
+</html>
