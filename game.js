@@ -90,6 +90,10 @@ document.addEventListener('keydown', (e) => {
     resetGame(true);
     gameState = 'playing';
   }
+  // Pause toggle with P key or Escape
+  if ((e.key === 'p' || e.key === 'P' || e.code === 'Escape') && (gameState === 'playing' || gameState === 'paused')) {
+    togglePause();
+  }
 });
 document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft') leftPressed = false;
@@ -130,9 +134,27 @@ document.getElementById('restartBtn').onclick = () => {
   }
 };
 
+// Pause button handler
+const pauseBtn = document.getElementById('pauseBtn');
+if (pauseBtn) {
+  pauseBtn.onclick = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      togglePause();
+    }
+  };
+}
+
 function startGame() {
   gameState = 'playing';
   resetGame();
+}
+
+function togglePause() {
+  if (gameState === 'playing') {
+    gameState = 'paused';
+  } else if (gameState === 'paused') {
+    gameState = 'playing';
+  }
 }
 
 function resetGame(isNextStage = false) {
@@ -329,7 +351,9 @@ function drawParticles() {
 
 function drawBackground() {
   // 動的背景エフェクト
-  backgroundOffset += 0.5;
+  if (gameState !== 'paused') {
+    backgroundOffset += 0.5;
+  }
   
   // 星のような背景
   for (let i = 0; i < 50; i++) {
@@ -429,6 +453,19 @@ function draw() {
         ctx.fillStyle = '#fff';
         ctx.fillText('スペースキーで次のステージへ', WIDTH / 2, HEIGHT / 2 + 40);
         ctx.textAlign = 'left';
+      } else if (gameState === 'paused') {
+        // Pause overlay
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillText('一時停止', WIDTH / 2, HEIGHT / 2 - 10);
+        ctx.font = '18px sans-serif';
+        ctx.fillText('Pキー または Esc で再開', WIDTH / 2, HEIGHT / 2 + 24);
+        ctx.textAlign = 'left';
+        ctx.restore();
       }
     }
   } catch (e) {

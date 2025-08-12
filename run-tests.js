@@ -268,7 +268,7 @@ class GameTestSuite {
   // 結果表示
   showResults() {
     log('\n📊 テスト結果サマリー', 'bright');
-    log('=' * 50, 'cyan');
+    log('='.repeat(50), 'cyan');
     
     log(`総テスト数: ${this.total}`, 'blue');
     log(`成功: ${this.passed}`, 'green');
@@ -283,13 +283,13 @@ class GameTestSuite {
       log('\n⚠️ いくつかのテストが失敗しました。', 'yellow');
     }
     
-    log('=' * 50, 'cyan');
+    log('='.repeat(50), 'cyan');
   }
 
   // 全テスト実行
   runAllTests() {
     log('🚀 ブロック崩しゲーム - 自動テスト開始', 'bright');
-    log('=' * 50, 'cyan');
+    log('='.repeat(50), 'cyan');
     
     this.testFileExists();
     this.testFileContents();

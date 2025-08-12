@@ -141,7 +141,7 @@
         }
 
         // ボールテスト
-        if (ball && typeof ball.x === 'number' && typeof ball.y === 'number') {
+        if (Array.isArray(balls) && balls[0] && typeof balls[0].x === 'number' && typeof balls[0].y === 'number') {
           addResult('basic-results', '✅ ボール初期化正常', 'pass');
         } else {
           addResult('basic-results', '❌ ボール初期化異常', 'fail');
