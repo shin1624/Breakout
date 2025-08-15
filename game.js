@@ -35,9 +35,10 @@ let balls = [{
   y: HEIGHT - 50,
   r: 8,
   speed: 5,
-  dx: 4,
-  dy: -4,
-  pierce: 0
+  dx: 3,
+  dy: -3,
+  pierce: 0,
+  fallen: false
 }];
 
 // ブロック
@@ -167,9 +168,10 @@ function resetGame(isNextStage = false) {
     y: HEIGHT - 50,
     r: 8,
     speed: 5,
-    dx: 4,
-    dy: -4,
-    pierce: 0
+    dx: 3,
+    dy: -3,
+    pierce: 0,
+    fallen: false
   }];
   generateStage(stage);
   powerUps = [];
@@ -409,17 +411,19 @@ function drawTitle() {
   ctx.textAlign = 'center';
   ctx.fillText('新型ブロック崩し', WIDTH / 2, HEIGHT / 3);
   // サブタイトル
-  ctx.font = '20px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
+  ctx.font = '18px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.fillStyle = '#4f8cff';
-  ctx.fillText('パワーアップとアニメーションで進化したブロック崩し', WIDTH / 2, HEIGHT / 3 + 40);
+  ctx.fillText('パワーアップとアニメーションで', WIDTH / 2, HEIGHT / 3 + 40);
+  ctx.fillText('進化したブロック崩し', WIDTH / 2, HEIGHT / 3 + 60);
   // 操作方法
   ctx.font = '16px "Segoe UI", "Noto Sans JP", Arial, sans-serif';
   ctx.fillStyle = '#888';
   ctx.fillText('操作方法: 左右矢印キーでパドル操作', WIDTH / 2, HEIGHT / 2 + 20);
   ctx.fillText('Pキーまたはスペースキーでポーズ', WIDTH / 2, HEIGHT / 2 + 40);
-  ctx.fillText('パワーアップを取得してステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 60);
+  ctx.fillText('パワーアップを取得して', WIDTH / 2, HEIGHT / 2 + 60);
+  ctx.fillText('ステージをクリアしよう！', WIDTH / 2, HEIGHT / 2 + 80);
   // スタートボタン
-  const buttonY = HEIGHT * 0.7;
+  const buttonY = HEIGHT * 0.75;
   const buttonW = 200;
   const buttonH = 50;
   const buttonX = WIDTH / 2 - buttonW / 2;
@@ -536,17 +540,31 @@ function update() {
       ball.x += ball.dx;
       ball.y += ball.dy;
 
-      // 壁反射
-      if (ball.x - ball.r < 0 || ball.x + ball.r > WIDTH) {
-        ball.dx *= -1;
+      // 壁反射（画面端での正確な位置調整）
+      if (ball.x - ball.r <= 0) {
+        ball.x = ball.r; // 左端で位置を固定
+        ball.dx = Math.abs(ball.dx); // 右方向に反射
+        playSE('hit');
+      } else if (ball.x + ball.r >= WIDTH) {
+        ball.x = WIDTH - ball.r; // 右端で位置を固定
+        ball.dx = -Math.abs(ball.dx); // 左方向に反射
         playSE('hit');
       }
-      if (ball.y - ball.r < 0) {
-        ball.dy *= -1;
+      if (ball.y - ball.r <= 0) {
+        ball.y = ball.r; // 上端で位置を固定
+        ball.dy = Math.abs(ball.dy); // 下方向に反射
         playSE('hit');
       }
+      
+      // 画面下に到達した場合の即座の落下判定
+      if (ball.y - ball.r > HEIGHT) {
+        // ボールを落下状態としてマーク
+        ball.fallen = true;
+      }
+    });
 
-      // パドル反射
+    // パドル反射
+    balls.forEach(ball => {
       if (
         ball.y + ball.r > paddle.y &&
         ball.x > paddle.x &&
@@ -557,6 +575,10 @@ function update() {
         // パドルのどこに当たったかで角度調整
         let hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
         ball.dx = hitPos * 5;
+        // ボールの速度を制限（極端に速くならないように）
+        const maxSpeed = 8;
+        ball.dx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dx));
+        ball.dy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dy));
         playSE('hit');
       }
     });
@@ -692,8 +714,15 @@ function update() {
     animationFrame++;
 
     // ボール落下チェック
-    const fallenBalls = balls.filter(ball => ball.y - ball.r > HEIGHT);
-    balls = balls.filter(ball => ball.y - ball.r <= HEIGHT);
+    const fallenBalls = balls.filter(ball => ball.fallen); // fallenフラグが立っているボールを取得
+    balls = balls.filter(ball => !ball.fallen); // fallenフラグが立っているボールを除外
+    
+    // デバッグ用：ボール落下ログ
+    if (fallenBalls.length > 0) {
+      console.log('ボール落下検出:', fallenBalls.length, '個');
+      console.log('残りライフ:', lives);
+      console.log('残りボール:', balls.length);
+    }
     
     // ボールが落下した場合のライフ処理
     if (fallenBalls.length > 0) {
@@ -702,24 +731,53 @@ function update() {
         paddle.shield = false;
         paddle.shieldTimer = 0;
         addEffect('シールド破損', '#00f', 3);
+        console.log('シールドでライフ保護');
       } else {
         // ライフを減らす
         lives--;
+        console.log('ライフ減少:', lives);
         if (lives <= 0) {
           gameState = 'gameover';
           playSE('gameover');
+          console.log('ゲームオーバー');
         } else {
-          // 新しいボールを生成
-          balls.push({
-            x: WIDTH / 2,
-            y: HEIGHT - 50,
-            r: 8,
-            speed: 5,
-            dx: 4,
-            dy: -4,
-            pierce: 0
-          });
+          // 新しいボールを生成（残っているボールがある場合は生成しない）
+          if (balls.length === 0) {
+            balls.push({
+              x: WIDTH / 2,
+              y: HEIGHT - 50,
+              r: 8,
+              speed: 5,
+              dx: 4,
+              dy: -4,
+              pierce: 0,
+              fallen: false
+            });
+            console.log('新しいボール生成');
+          }
         }
+      }
+    }
+    
+    // ゲームオーバー判定（ボールが0個になった場合）
+    if (balls.length === 0 && gameState === 'playing') {
+      // ボールが0個になった場合、ライフを減らす
+      lives--;
+      if (lives <= 0) {
+        gameState = 'gameover';
+        playSE('gameover');
+      } else {
+        // 新しいボールを生成
+        balls.push({
+          x: WIDTH / 2,
+          y: HEIGHT - 50,
+          r: 8,
+          speed: 5,
+          dx: 4,
+          dy: -4,
+          pierce: 0,
+          fallen: false
+        });
       }
     }
 
@@ -727,6 +785,12 @@ function update() {
     if (blocks.length === 0) {
       gameState = 'clear';
       playSE('clear');
+      console.log('ステージクリア！ブロック数:', blocks.length);
+    }
+    
+    // デバッグ用：ブロック数の表示
+    if (gameState === 'playing' && animationFrame % 60 === 0) {
+      console.log('現在のブロック数:', blocks.length);
     }
 
     document.getElementById('score').textContent = `スコア: ${score}`;
@@ -851,10 +915,8 @@ function applyPowerUp(type) {
       case 'bomb':
         // 爆弾効果：画面内のブロックを一掃
         blocks.forEach(block => {
-          if (block.visible) {
-            score += 100;
-            createParticleExplosion(block.x + block.w/2, block.y + block.h/2, '#f00');
-          }
+          score += 100;
+          createParticleExplosion(block.x + block.w/2, block.y + block.h/2, '#f00');
         });
         blocks = [];
         addEffect('爆弾発動！', '#800', 15);
