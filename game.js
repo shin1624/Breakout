@@ -657,7 +657,8 @@ function update() {
     }
     
     // レーザーの移動と衝突判定
-    lasers.forEach((laser, idx) => {
+    for (let laserIdx = lasers.length - 1; laserIdx >= 0; laserIdx--) {
+      const laser = lasers[laserIdx];
       // ブロックとの衝突判定
       for (let i = 0; i < blocks.length; i++) {
         let b = blocks[i];
@@ -670,14 +671,14 @@ function update() {
             }
             blocks.splice(i, 1);
             score += 100;
-            i--;
+            i--; // Adjust index because a block was removed
             playSE('break');
           }
-          lasers.splice(idx, 1);
-          break;
+          lasers.splice(laserIdx, 1); // Remove laser
+          break; // A laser hits only one block
         }
       }
-    });
+    }
     
     // エフェクトの更新
     activeEffects.forEach((effect, idx) => {
@@ -910,7 +911,7 @@ function applyPowerUp(type) {
       case 'laser':
         // レーザー効果を有効化
         laserCooldown = 120; // 2秒間（60FPS想定）
-        addEffect('レーザー有効', '#f80', 8);
+        addEffect('レーザー有効', '#f80', 2);
         break;
       case 'bomb':
         // 爆弾効果：画面内のブロックを一掃
